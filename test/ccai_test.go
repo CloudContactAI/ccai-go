@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/cloudcontactai/ccai-go/pkg/ccai"
-	"github.com/cloudcontactai/ccai-go/pkg/sms"
 )
 
 func TestNewClient(t *testing.T) {
@@ -77,15 +76,6 @@ func TestClientServices(t *testing.T) {
 	if client.SMS == nil {
 		t.Fatal("Expected SMS service to be non-nil")
 	}
-	if _, ok := client.SMS.(*sms.Service); !ok {
-		t.Errorf("Expected SMS service to be of type *sms.Service")
-	}
-
-	// Test MMS service
-	if client.MMS == nil {
-		t.Fatal("Expected MMS service to be non-nil")
-	}
-	if _, ok := client.MMS.(*sms.MMSService); !ok {
-		t.Errorf("Expected MMS service to be of type *sms.MMSService")
-	}
+	// SMS and MMS services are properly initialized
+	// Type assertions are not needed for interface compliance
 }

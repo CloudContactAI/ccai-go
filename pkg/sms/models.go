@@ -4,6 +4,8 @@
 // Package sms provides functionality for sending SMS messages through the CCAI API.
 package sms
 
+import "fmt"
+
 // Account represents a recipient account.
 type Account struct {
 	FirstName string `json:"firstName"`
@@ -28,12 +30,26 @@ type MMSCampaign struct {
 
 // Response represents the response from the SMS API.
 type Response struct {
-	ID           string                 `json:"id,omitempty"`
+	ID           interface{}            `json:"id,omitempty"`
 	Status       string                 `json:"status,omitempty"`
 	CampaignID   string                 `json:"campaignId,omitempty"`
 	MessagesSent int                    `json:"messagesSent,omitempty"`
 	Timestamp    string                 `json:"timestamp,omitempty"`
 	Extra        map[string]interface{} `json:"-"`
+}
+
+// GetID returns the ID as a string, handling both string and number types.
+func (r *Response) GetID() string {
+	switch v := r.ID.(type) {
+	case string:
+		return v
+	case float64:
+		return fmt.Sprintf("%.0f", v)
+	case int:
+		return fmt.Sprintf("%d", v)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // SignedURLResponse represents the response from the signed URL API.

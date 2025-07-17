@@ -4,7 +4,6 @@
 package test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/cloudcontactai/ccai-go/pkg/sms"
@@ -51,7 +50,7 @@ func TestSMSSend(t *testing.T) {
 		{
 			FirstName: "John",
 			LastName:  "Doe",
-			Phone:     "+15551234567",
+			Phone:     "+14156961732",
 		},
 	}
 	message := "Hello ${firstName}, this is a test message!"
@@ -130,7 +129,7 @@ func TestSMSSendSingle(t *testing.T) {
 
 	firstName := "Jane"
 	lastName := "Smith"
-	phone := "+15559876543"
+	phone := "+14152440933"
 	message := "Hi ${firstName}, thanks for your interest!"
 	title := "Single Message Test"
 

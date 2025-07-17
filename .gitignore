@@ -8,35 +8,25 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories
+vendor/
 
 # Go workspace file
 go.work
 
-# IDE files
+# IDE specific files
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS specific files
-.DS_Store
-Thumbs.db
-
-# Environment variables
+# Local configuration files that might contain sensitive information
+*.local.go
+*_local.*
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-# Log files
-*.log
-
-# Build output
-bin/
-dist/
+# Specific files with sensitive information
+# Add any files here that might contain API keys or personal data
