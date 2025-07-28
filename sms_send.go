@@ -10,8 +10,8 @@ import (
 func main() {
 	// Initialize the client with your credentials
 	client, err := ccai.NewClient(ccai.Config{
-		ClientID: "YOUR-CLIENT-ID",
-		APIKey:   "YOUR-API-KEY"
+		ClientID: "YOUR_CLIENT_ID",
+		APIKey:   "YOUR_API_KEY",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create CCAI client: %v", err)
@@ -21,8 +21,8 @@ func main() {
 	response, err := client.SMS.SendSingle(
 		"John",
 		"Doe",
-		"+15551234567", // Replace with your phone number
-		"Hello ${firstName}, this is a test message from Go!",
+		"+14156566694", // Replace this with YOUR actual phone number
+		"Hello ${firstName}, this is a NEW test message from Go!",
 		"Go Test Campaign",
 		nil,
 	)
@@ -34,4 +34,5 @@ func main() {
 	fmt.Printf("Message ID: %s\n", response.GetID())
 	fmt.Printf("Status: %s\n", response.Status)
 	fmt.Printf("Campaign ID: %s\n", response.CampaignID)
+	fmt.Printf("Full Response: %+v\n", response)
 }

@@ -19,7 +19,7 @@ func TestMMSSend(t *testing.T) {
 		{
 			FirstName: "John",
 			LastName:  "Doe",
-			Phone:     "+15551234567",
+			Phone:     "+14156566694",
 		},
 	}
 	message := "Hello ${firstName}, check out this image!"

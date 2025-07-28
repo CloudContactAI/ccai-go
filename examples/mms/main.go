@@ -15,8 +15,8 @@ import (
 func main() {
 	// Initialize the client
 	client, err := ccai.NewClient(ccai.Config{
-		ClientID: "YOUR-CLIENT-ID",
-		APIKey:   "YOUR-API-KEY",
+		ClientID: "YOUR_CLIENT_ID",
+		APIKey:   "YOUR_API_KEY",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create CCAI client: %v", err)
@@ -44,7 +44,7 @@ func sendMMSWithImage(client *ccai.Client) {
 	account := sms.Account{
 		FirstName: "John",
 		LastName:  "Doe",
-		Phone:     "+15551234567", // Use E.164 format
+		Phone:     "+14156566694", // Use E.164 format
 	}
 
 	// Message content and campaign title
@@ -133,7 +133,7 @@ func sendMMSStepByStep(client *ccai.Client) {
 		{
 			FirstName: "John",
 			LastName:  "Doe",
-			Phone:     "+15551234567",
+			Phone:     "+14156566694",
 		},
 		{
 			FirstName: "Jane",
@@ -167,14 +167,14 @@ func sendMMSStepByStep(client *ccai.Client) {
 
 func sendSingleMMS(client *ccai.Client) {
 	// Define the file key of an already uploaded image
-	pictureFileKey := "your-client-id/campaign/your-image.jpg"
+	pictureFileKey := "YOUR_CLIENT_ID/campaign/your-image.jpg"
 
 	// Send a single MMS
 	response, err := client.MMS.SendSingle(
 		pictureFileKey,
 		"John",
 		"Doe",
-		"+15551234567",
+		"+14156566694",
 		"Hello ${firstName}, check out this image!",
 		"Single MMS Example",
 		nil,

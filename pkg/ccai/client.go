@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cloudcontactai/ccai-go/pkg/sms"
+	"github.com/cloudcontactai/ccai-go/pkg/webhook"
 )
 
 // Config represents the configuration for the CCAI client.
@@ -28,6 +29,7 @@ type Client struct {
 	httpClient *http.Client
 	SMS        *sms.Service
 	MMS        *sms.MMSService
+	Webhook    *webhook.Service
 }
 
 // NewClient creates a new CCAI client instance.
@@ -56,9 +58,12 @@ func NewClient(config Config) (*Client, error) {
 
 	// Initialize the SMS service
 	client.SMS = sms.NewService(client)
-	
+
 	// Initialize the MMS service
 	client.MMS = sms.NewMMSService(client)
+
+	// Initialize the Webhook service
+	client.Webhook = webhook.NewService(client)
 
 	return client, nil
 }

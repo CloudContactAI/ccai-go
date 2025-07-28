@@ -11,8 +11,8 @@ import (
 func main() {
 	// Initialize the client with your credentials
 	client, err := ccai.NewClient(ccai.Config{
-		ClientID: "YOUR-CLIENT-ID",
-		APIKey:   "YOUR-API-KEY",
+		ClientID: "YOUR_CLIENT_ID",
+		APIKey:   "YOUR_API_KEY",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create CCAI client: %v", err)
@@ -23,7 +23,7 @@ func main() {
 		{
 			FirstName: "John",
 			LastName:  "Doe",
-			Phone:     "+15551234567",
+			Phone:     "+14156566694",
 		},
 	}
 
