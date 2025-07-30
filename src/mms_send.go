@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cloudcontactai/ccai-go/pkg/ccai"
-	"github.com/cloudcontactai/ccai-go/pkg/sms"
+	"github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
 )
 
 func main() {

@@ -12,8 +12,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cloudcontactai/ccai-go/pkg/sms"
-	"github.com/cloudcontactai/ccai-go/pkg/webhook"
+	"github.com/cloudcontactai/ccai-go/src/pkg/email"
+	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
+	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
 )
 
 // Config represents the configuration for the CCAI client.
@@ -23,6 +24,21 @@ type Config struct {
 	BaseURL  string
 }
 
+// Account represents a recipient account.
+type Account = sms.Account
+
+// EmailAccount represents an email recipient account.
+type EmailAccount = email.EmailAccount
+
+// EmailCampaign represents the email campaign configuration.
+type EmailCampaign = email.EmailCampaign
+
+// EmailResponse represents the response from the email API.
+type EmailResponse = email.EmailResponse
+
+// EmailOptions represents options for email operations.
+type EmailOptions = email.EmailOptions
+
 // Client is the main client for interacting with the CloudContactAI API.
 type Client struct {
 	config     Config
@@ -30,6 +46,7 @@ type Client struct {
 	SMS        *sms.Service
 	MMS        *sms.MMSService
 	Webhook    *webhook.Service
+	Email      *email.Service
 }
 
 // NewClient creates a new CCAI client instance.
@@ -65,6 +82,9 @@ func NewClient(config Config) (*Client, error) {
 	// Initialize the Webhook service
 	client.Webhook = webhook.NewService(client)
 
+	// Initialize the Email service
+	client.Email = email.NewService(client)
+
 	return client, nil
 }
 
@@ -86,6 +106,52 @@ func (c *Client) GetBaseURL() string {
 // Request makes an authenticated API request to the CCAI API.
 func (c *Client) Request(method, endpoint string, data interface{}, headers map[string]string) ([]byte, error) {
 	url := c.config.BaseURL + endpoint
+
+	var reqBody io.Reader
+	if data != nil {
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal request data: %w", err)
+		}
+		reqBody = bytes.NewBuffer(jsonData)
+	}
+
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set default headers
+	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "*/*")
+
+	// Set additional headers if provided
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	return body, nil
+}
+
+// CustomRequest makes an authenticated API request to a custom base URL endpoint.
+func (c *Client) CustomRequest(method, endpoint string, data interface{}, customBaseURL string, headers map[string]string) ([]byte, error) {
+	url := customBaseURL + endpoint
 
 	var reqBody io.Reader
 	if data != nil {

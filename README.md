@@ -14,28 +14,96 @@ go get github.com/cloudcontactai/ccai-go
 
 ## Usage
 
+### Environment Variables
+
+Create a `.env` file in your project root:
+
+```env
+CCAI_CLIENT_ID=your_client_id
+CCAI_API_KEY=your_api_key
+```
+
+### Email
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    // Load environment variables
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    // Initialize the client
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
+
+    // Send a single email
+    response, err := client.Email.SendSingle(
+        "John",                              // firstName
+        "Doe",                               // lastName
+        "recipient@example.com",             // email
+        "Test Email Subject",                // subject
+        "<p>Hello John, this is a test!</p>", // message (HTML)
+        "noreply@cloudcontactai.com",        // senderEmail
+        "support@cloudcontactai.com",        // replyEmail
+        "CloudContactAI",                    // senderName
+        "Test Campaign",                     // title
+        nil,                                 // options
+    )
+    if err != nil {
+        log.Fatalf("Failed to send email: %v", err)
+    }
+
+    fmt.Printf("Email sent with ID: %d\n", response.ID)
+}
+```
+
 ### SMS
 
 ```go
 package main
 
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
+    "os"
 
-	"github.com/cloudcontactai/ccai-go/pkg/ccai"
-	"github.com/cloudcontactai/ccai-go/pkg/sms"
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/pkg/sms"
+    "github.com/joho/godotenv"
 )
 
 func main() {
-	// Initialize the client
-	client, err := ccai.NewClient(ccai.Config{
-		ClientID: "YOUR_CLIENT_ID",
-		APIKey:   "YOUR_API_KEY",
-	})
-	if err != nil {
-		log.Fatalf("Failed to create CCAI client: %v", err)
-	}
+    // Load environment variables
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    // Initialize the client
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
 
 	// Send a single SMS
 	response, err := client.SMS.SendSingle(
@@ -86,22 +154,30 @@ func main() {
 package main
 
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
+    "os"
 
-	"github.com/cloudcontactai/ccai-go/pkg/ccai"
-	"github.com/cloudcontactai/ccai-go/pkg/sms"
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/pkg/sms"
+    "github.com/joho/godotenv"
 )
 
 func main() {
-	// Initialize the client
-	client, err := ccai.NewClient(ccai.Config{
-		ClientID: "YOUR_CLIENT_ID",
-		APIKey:   "YOUR_API_KEY",
-	})
-	if err != nil {
-		log.Fatalf("Failed to create CCAI client: %v", err)
-	}
+    // Load environment variables
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    // Initialize the client
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
 
 	// Define progress tracking
 	options := &sms.Options{
@@ -208,28 +284,32 @@ response, err := client.SMS.Send(
 
 ## Project Structure
 
-- `pkg/` - Package code
-  - `ccai/` - Main CCAI client package
-    - `client.go` - Main CCAI client implementation
-    - `ccai.go` - Type definitions and exports
-  - `sms/` - SMS-related functionality
-    - `models.go` - Data models
-    - `sms.go` - SMS service implementation
-    - `mms.go` - MMS service implementation
-- `examples/` - Example usage
-  - `basic/` - Basic SMS example
-  - `mms/` - MMS examples
-  - `progress_tracking/` - Progress tracking example
-- `test/` - Test files
-- `cmd/` - Command-line tools (if any)
+- `src/` - Source code
+  - `pkg/` - Package code
+    - `ccai/` - Main CCAI client package
+      - `client.go` - Main CCAI client implementation
+      - `ccai.go` - Type definitions and exports
+    - `sms/` - SMS-related functionality
+      - `models.go` - Data models
+      - `sms.go` - SMS service implementation
+      - `mms.go` - MMS service implementation
+    - `email/` - Email-related functionality
+      - `models.go` - Email data models
+      - `email.go` - Email service implementation
+  - `examples/` - Example usage
+    - `email/` - Email examples
+- `.env` - Environment variables
+- `.env.example` - Environment variables template
 
 ## Features
 
+- Send email messages to single or multiple recipients
 - Send SMS messages to single or multiple recipients
 - Send MMS messages with images
 - Upload images to S3 with signed URLs
 - Variable substitution in messages
 - Progress tracking via callbacks
+- Environment variable support with .env files
 - Comprehensive error handling
 - Full test coverage
 

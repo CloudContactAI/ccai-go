@@ -9,8 +9,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cloudcontactai/ccai-go/pkg/ccai"
-	"github.com/cloudcontactai/ccai-go/pkg/webhook"
+	"github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
 )
 
 func main() {
