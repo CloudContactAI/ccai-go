@@ -68,6 +68,7 @@ func sendMMSWithImage(client *ccai.Client) {
 		[]sms.Account{account},
 		message,
 		title,
+		"",
 		options,
 		true,
 	)
@@ -152,6 +153,7 @@ func sendMMSStepByStep(client *ccai.Client) {
 		accounts,
 		message,
 		title,
+		"",
 		nil,
 		true,
 	)
@@ -177,6 +179,8 @@ func sendSingleMMS(client *ccai.Client) {
 		"+14156566694",
 		"Hello ${firstName}, check out this image!",
 		"Single MMS Example",
+		"",
+		"",
 		nil,
 		true,
 	)

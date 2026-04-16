@@ -51,6 +51,7 @@ func main() {
 		accounts,
 		"Hello ${firstName}, this is a test message with progress tracking!",
 		"Progress Tracking Test",
+		"",
 		options,
 	)
 	if err != nil {

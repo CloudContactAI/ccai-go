@@ -21,7 +21,7 @@ func NewService(client ClientInterface) *Service {
 }
 
 // Send sends an SMS message to one or more recipients.
-func (s *Service) Send(accounts []Account, message, title string, options *Options) (*Response, error) {
+func (s *Service) Send(accounts []Account, message, title, senderPhone string, options *Options) (*Response, error) {
 	// Validate inputs
 	if len(accounts) == 0 {
 		return nil, fmt.Errorf("at least one account is required")
@@ -47,9 +47,10 @@ func (s *Service) Send(accounts []Account, message, title string, options *Optio
 	endpoint := fmt.Sprintf("/clients/%s/campaigns/direct", s.client.GetClientID())
 
 	campaignData := Campaign{
-		Accounts: accounts,
-		Message:  message,
-		Title:    title,
+		Accounts:    accounts,
+		Message:     message,
+		Title:       title,
+		SenderPhone: senderPhone,
 	}
 
 	// Notify progress if callback provided
@@ -76,12 +77,13 @@ func (s *Service) Send(accounts []Account, message, title string, options *Optio
 }
 
 // SendSingle sends a single SMS message to one recipient.
-func (s *Service) SendSingle(firstName, lastName, phone, message, title string, options *Options) (*Response, error) {
+func (s *Service) SendSingle(firstName, lastName, phone, message, title, customData, senderPhone string, options *Options) (*Response, error) {
 	account := Account{
-		FirstName: firstName,
-		LastName:  lastName,
-		Phone:     phone,
+		FirstName:   firstName,
+		LastName:    lastName,
+		Phone:       phone,
+		MessageData: customData,
 	}
 
-	return s.Send([]Account{account}, message, title, options)
+	return s.Send([]Account{account}, message, title, senderPhone, options)
 }

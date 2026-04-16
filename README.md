@@ -1,6 +1,6 @@
 # CCAI Go Client
 
-A Go client for interacting with the Cloud Contact AI API that allows you to easily send SMS and MMS messages.
+A Go client for interacting with the Cloud Contact AI API that allows you to easily send SMS and MMS messages, send email campaigns, manage webhooks, and manage contact opt-out preferences.
 
 ## Requirements
 
@@ -261,6 +261,165 @@ if uploadSuccess {
 }
 ```
 
+### Contact
+
+Manage opt-out preferences for contacts.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
+
+    // Opt a contact out of text messages (by phone)
+    result, err := client.Contact.SetDoNotText(true, "", "+15551234567")
+    if err != nil {
+        log.Fatalf("Failed to set do-not-text: %v", err)
+    }
+    fmt.Printf("Opted out contact: %s\n", result.Phone)
+
+    // Opt a contact back in
+    _, err = client.Contact.SetDoNotText(false, "", "+15551234567")
+    if err != nil {
+        log.Fatalf("Failed to opt in: %v", err)
+    }
+
+    // Opt out by contactId
+    _, err = client.Contact.SetDoNotText(true, "contact-abc-123", "")
+    if err != nil {
+        log.Fatalf("Failed to set do-not-text by ID: %v", err)
+    }
+}
+```
+
+### Webhooks
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/pkg/webhook"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
+
+    // Register a new webhook - server generates secret automatically
+    wh, err := client.Webhook.Register(webhook.WebhookConfig{
+        URL: "https://your-app.com/api/ccai-webhook",
+        // Secret is optional - if not provided, server generates one automatically
+    })
+    if err != nil {
+        log.Fatalf("Failed to register webhook: %v", err)
+    }
+    fmt.Printf("Webhook registered with ID: %s\n", wh.ID)
+    fmt.Printf("Secret Key: %s\n", wh.SecretKey)  // Save this securely!
+
+    // Or provide a custom secret if needed
+    customSecret := "your-custom-secret"
+    wh2, err := client.Webhook.Register(webhook.WebhookConfig{
+        URL:    "https://your-app.com/api/custom-webhook",
+        Secret: &customSecret,
+    })
+    if err != nil {
+        log.Fatalf("Failed to register webhook: %v", err)
+    }
+    fmt.Printf("Custom secret webhook registered: %s\n", wh2.SecretKey)
+
+    // List all webhooks
+    webhooks, err := client.Webhook.List()
+    if err != nil {
+        log.Fatalf("Failed to list webhooks: %v", err)
+    }
+    fmt.Printf("Registered webhooks: %d\n", len(webhooks))
+
+    // Update a webhook
+    updated, err := client.Webhook.Update(wh.ID, webhook.WebhookConfig{
+        URL: "https://your-app.com/api/new-webhook",
+    })
+    if err != nil {
+        log.Fatalf("Failed to update webhook: %v", err)
+    }
+    fmt.Printf("Updated webhook URL: %s\n", updated.URL)
+
+    // Delete a webhook
+    _, err = client.Webhook.Delete(wh.ID)
+    if err != nil {
+        log.Fatalf("Failed to delete webhook: %v", err)
+    }
+
+    // Verify webhook signature (in your HTTP handler)
+    http.HandleFunc("/api/ccai-webhook", func(w http.ResponseWriter, r *http.Request) {
+        signature := r.Header.Get("X-CCAI-Signature")
+        
+        // Parse the JSON body to get eventHash
+        var payload map[string]interface{}
+        if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+            http.Error(w, "Invalid JSON", http.StatusBadRequest)
+            return
+        }
+        defer r.Body.Close()
+
+        clientID := os.Getenv("CCAI_CLIENT_ID")
+        eventHash, ok := payload["eventHash"].(string)
+        if !ok {
+            http.Error(w, "Missing eventHash", http.StatusBadRequest)
+            return
+        }
+
+        valid := client.Webhook.VerifySignature(signature, clientID, eventHash, "your-webhook-secret")
+        if !valid {
+            http.Error(w, "Invalid signature", http.StatusUnauthorized)
+            return
+        }
+
+        // Process the event
+        eventData := payload["data"].(map[string]interface{})
+        fmt.Printf("Event received: %v\n", eventData)
+        
+        w.WriteHeader(http.StatusOK)
+    })
+}
+```
+
 ### With Progress Tracking
 
 ```go
@@ -289,25 +448,33 @@ response, err := client.SMS.Send(
     - `ccai/` - Main CCAI client package
       - `client.go` - Main CCAI client implementation
       - `ccai.go` - Type definitions and exports
-    - `sms/` - SMS-related functionality
+    - `sms/` - SMS and MMS functionality
       - `models.go` - Data models
       - `sms.go` - SMS service implementation
       - `mms.go` - MMS service implementation
-    - `email/` - Email-related functionality
+    - `email/` - Email functionality
       - `models.go` - Email data models
       - `email.go` - Email service implementation
+    - `contact/` - Contact management
+      - `contact.go` - Contact service (opt-out)
+    - `webhook/` - Webhook functionality
+      - `service.go` - Webhook CRUD service
+      - `webhook.go` - Webhook client and signature verification
+      - `types.go` - Webhook type definitions
+      - `handler.go` - Webhook event handler
   - `examples/` - Example usage
-    - `email/` - Email examples
 - `.env` - Environment variables
 - `.env.example` - Environment variables template
 
 ## Features
 
-- Send email messages to single or multiple recipients
 - Send SMS messages to single or multiple recipients
-- Send MMS messages with images
-- Upload images to S3 with signed URLs
-- Variable substitution in messages
+- Send MMS messages with images (automatic S3 upload)
+- Send Email campaigns with HTML content
+- Manage contact opt-out preferences (SetDoNotText)
+- Webhook management: register, list, update, delete
+- Webhook signature verification (HMAC-SHA256)
+- Template variable substitution (`${firstName}`, `${lastName}`)
 - Progress tracking via callbacks
 - Environment variable support with .env files
 - Comprehensive error handling

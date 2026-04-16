@@ -24,6 +24,8 @@ func main() {
 		"+14156566694", // Replace this with YOUR actual phone number
 		"Hello ${firstName}, this is a NEW test message from Go!",
 		"Go Test Campaign",
+		"",
+		"",
 		nil,
 	)
 	if err != nil {

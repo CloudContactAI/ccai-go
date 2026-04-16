@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -103,11 +103,15 @@ func (w *Client) Delete(id string) (*WebhookDeleteResponse, error) {
 }
 
 // VerifySignature verifies a webhook signature using HMAC-SHA256
-func (w *Client) VerifySignature(signature, body, secret string) bool {
-	// Create HMAC-SHA256 hash
+// Signature is computed as: HMAC-SHA256(secretKey, clientId:eventHash) encoded in Base64
+func (w *Client) VerifySignature(signature string, clientID string, eventHash string, secret string) bool {
+	// Compute: HMAC-SHA256(secretKey, "$clientId:$eventHash")
+	data := fmt.Sprintf("%s:%s", clientID, eventHash)
 	h := hmac.New(sha256.New, []byte(secret))
-	h.Write([]byte(body))
-	expectedSignature := hex.EncodeToString(h.Sum(nil))
+	h.Write([]byte(data))
+
+	// Encode the result in Base64
+	expectedSignature := base64.StdEncoding.EncodeToString(h.Sum(nil))
 
 	// Compare signatures (constant time comparison)
 	return hmac.Equal([]byte(signature), []byte(expectedSignature))

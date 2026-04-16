@@ -67,6 +67,7 @@ func sendSingleEmail(client *ccai.Client) error {
 		"thavasantonio@gmail.com", // email
 		"Welcome to Our Service",  // subject
 		"<p>Hello Thava,</p><p>Thank you for signing up for our service!</p><p>Best regards,<br>The Team</p>", // message
+		"",                            // textContent (optional plain text fallback)
 		"noreply@noreply@allcode.com", // senderEmail
 		"support@noreply@allcode.com", // replyEmail
 		"CloudContactAI",              // senderName

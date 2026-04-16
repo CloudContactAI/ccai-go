@@ -5,7 +5,6 @@
 package webhook
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,14 +13,14 @@ import (
 
 // HandlerOptions represents configuration options for the webhook handler
 type HandlerOptions struct {
+	// ClientID is the CCAI client ID (required for signature verification)
+	ClientID string
+
 	// Secret used to verify webhook signatures
 	Secret string
 
-	// Handler for Message Sent events
-	OnMessageSent func(event MessageSentEventData) error
-
-	// Handler for Message Received events
-	OnMessageReceived func(event MessageReceivedEventData) error
+	// Handler for all webhook events
+	OnEvent func(event *WebhookEvent) error
 
 	// Whether to log events to console
 	LogEvents bool
@@ -44,6 +43,13 @@ func CreateHandler(options HandlerOptions) http.HandlerFunc {
 		}
 		defer r.Body.Close()
 
+		// Parse the webhook event first to get eventHash
+		event, err := ParseEvent(body)
+		if err != nil {
+			http.Error(w, "Invalid JSON or missing required fields", http.StatusBadRequest)
+			return
+		}
+
 		// Verify signature if secret is provided
 		if options.Secret != "" {
 			signature := r.Header.Get("X-CCAI-Signature")
@@ -52,67 +58,29 @@ func CreateHandler(options HandlerOptions) http.HandlerFunc {
 				return
 			}
 
+			if options.ClientID == "" {
+				http.Error(w, "ClientID is required for signature verification", http.StatusInternalServerError)
+				return
+			}
+
 			client := &Client{}
-			if !client.VerifySignature(signature, string(body), options.Secret) {
+			if !client.VerifySignature(signature, options.ClientID, event.EventHash, options.Secret) {
 				http.Error(w, "Invalid signature", http.StatusUnauthorized)
 				return
 			}
 		}
 
-		// Parse the webhook event
-		var rawEvent map[string]interface{}
-		if err := json.Unmarshal(body, &rawEvent); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-
-		// Get event type
-		eventType, ok := rawEvent["type"].(string)
-		if !ok {
-			http.Error(w, "Missing or invalid event type", http.StatusBadRequest)
-			return
-		}
-
 		// Log event if enabled
 		if options.LogEvents {
-			log.Printf("Webhook event: %s", eventType)
+			log.Printf("✅ Webhook event verified: %s", event.EventType)
 		}
 
-		// Handle the event based on type
-		switch WebhookEventType(eventType) {
-		case MessageSentEvent:
-			if options.OnMessageSent != nil {
-				var event MessageSentEventData
-				if err := json.Unmarshal(body, &event); err != nil {
-					http.Error(w, "Failed to parse message sent event", http.StatusBadRequest)
-					return
-				}
-
-				if err := options.OnMessageSent(event); err != nil {
-					log.Printf("Error handling message sent event: %v", err)
-					http.Error(w, "Internal server error", http.StatusInternalServerError)
-					return
-				}
-			}
-
-		case MessageReceivedEvent:
-			if options.OnMessageReceived != nil {
-				var event MessageReceivedEventData
-				if err := json.Unmarshal(body, &event); err != nil {
-					http.Error(w, "Failed to parse message received event", http.StatusBadRequest)
-					return
-				}
-
-				if err := options.OnMessageReceived(event); err != nil {
-					log.Printf("Error handling message received event: %v", err)
-					http.Error(w, "Internal server error", http.StatusInternalServerError)
-					return
-				}
-			}
-
-		default:
-			if options.LogEvents {
-				log.Printf("Unknown event type: %s", eventType)
+		// Handle the event
+		if options.OnEvent != nil {
+			if err := options.OnEvent(event); err != nil {
+				log.Printf("Error handling webhook event: %v", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
 			}
 		}
 

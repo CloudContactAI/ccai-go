@@ -7,10 +7,14 @@ import "time"
 
 // EmailAccount represents an email recipient account, extending the base Account type
 type EmailAccount struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Phone     string `json:"phone"`
-	Email     string `json:"email"`
+	FirstName       string            `json:"firstName"`
+	LastName        string            `json:"lastName"`
+	Phone           string            `json:"phone"`
+	Email           string            `json:"email"`
+	CustomAccountID string            `json:"customAccountId,omitempty"`
+	// Data holds additional key-value pairs for variable substitution in email templates.
+	// Sent to the API as "data" (wire format).
+	Data            map[string]string `json:"data,omitempty"`
 }
 
 // EmailCampaign represents the email campaign configuration
@@ -18,6 +22,7 @@ type EmailCampaign struct {
 	Subject            string         `json:"subject"`
 	Title              string         `json:"title"`
 	Message            string         `json:"message"`
+	TextContent        *string        `json:"textContent,omitempty"`
 	Editor             *string        `json:"editor,omitempty"`
 	FileKey            *string        `json:"fileKey,omitempty"`
 	SenderEmail        string         `json:"senderEmail"`
@@ -50,6 +55,8 @@ type EmailResponse struct {
 	CampaignID   *int64                 `json:"campaignId,omitempty"`
 	MessagesSent *int                   `json:"messagesSent,omitempty"`
 	Timestamp    *time.Time             `json:"timestamp,omitempty"`
+	Message      string                 `json:"message,omitempty"`
+	ResponseID   string                 `json:"responseId,omitempty"`
 	Extra        map[string]interface{} `json:"-"`
 }
 

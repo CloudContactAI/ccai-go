@@ -12,20 +12,81 @@ import (
 // ClientInterface defines the interface that the CCAI client must implement
 type ClientInterface interface {
 	CustomRequest(method, endpoint string, data interface{}, customBaseURL string, headers map[string]string) ([]byte, error)
+	GetClientID() string
+	GetAPIKey() string
+	GetEmailBaseURL() string
 }
 
 // Service provides email campaign functionality
 type Service struct {
-	client  ClientInterface
-	baseURL string
+	client ClientInterface
 }
 
 // NewService creates a new email service instance
 func NewService(client ClientInterface) *Service {
 	return &Service{
-		client:  client,
-		baseURL: "https://email-campaigns-test-cloudcontactai.allcode.com/api/v1",
+		client: client,
 	}
+}
+
+// Send sends an email campaign to one or more recipients
+func (s *Service) Send(accounts []EmailAccount, subject, message, senderEmail, replyEmail, senderName string, title string, options *EmailOptions) (*EmailResponse, error) {
+	if title == "" {
+		title = subject
+	}
+
+	campaign := &EmailCampaign{
+		Subject:      subject,
+		Title:        title,
+		Message:      message,
+		SenderEmail:  senderEmail,
+		ReplyEmail:   replyEmail,
+		SenderName:   senderName,
+		Accounts:     accounts,
+		CampaignType: "EMAIL",
+		AddToList:    "noList",
+		ContactInput: "accounts",
+		FromType:     "single",
+		Senders:      []interface{}{},
+	}
+
+	return s.SendCampaign(campaign, options)
+}
+
+// SendSingle sends a single email to one recipient
+func (s *Service) SendSingle(
+	firstName, lastName, email, subject, message, textContent, senderEmail, replyEmail, senderName, title string,
+	options *EmailOptions,
+) (*EmailResponse, error) {
+	account := EmailAccount{
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
+		Phone:     "", // Required by Account type but not used for email
+	}
+
+	var textContentPtr *string
+	if textContent != "" {
+		textContentPtr = &textContent
+	}
+
+	campaign := &EmailCampaign{
+		Subject:       subject,
+		Title:         title,
+		Message:       message,
+		TextContent:   textContentPtr,
+		SenderEmail:   senderEmail,
+		ReplyEmail:    replyEmail,
+		SenderName:    senderName,
+		Accounts:      []EmailAccount{account},
+		CampaignType:  "EMAIL",
+		AddToList:     "noList",
+		ContactInput:  "accounts",
+		FromType:      "single",
+		Senders:       []interface{}{},
+	}
+
+	return s.SendCampaign(campaign, options)
 }
 
 // SendCampaign sends an email campaign to one or more recipients
@@ -80,7 +141,7 @@ func (s *Service) SendCampaign(campaign *EmailCampaign, options *EmailOptions) (
 	}
 
 	// Make the API request to the email campaigns API
-	responseData, err := s.client.CustomRequest("POST", endpoint, campaign, s.baseURL, nil)
+	responseData, err := s.client.CustomRequest("POST", endpoint, campaign, s.client.GetEmailBaseURL(), nil)
 	if err != nil {
 		// Notify progress if callback provided
 		if options != nil && options.OnProgress != nil {
@@ -101,34 +162,4 @@ func (s *Service) SendCampaign(campaign *EmailCampaign, options *EmailOptions) (
 	}
 
 	return &response, nil
-}
-
-// SendSingle sends a single email to one recipient
-func (s *Service) SendSingle(
-	firstName, lastName, email, subject, message, senderEmail, replyEmail, senderName, title string,
-	options *EmailOptions,
-) (*EmailResponse, error) {
-	account := EmailAccount{
-		FirstName: firstName,
-		LastName:  lastName,
-		Email:     email,
-		Phone:     "", // Required by Account type but not used for email
-	}
-
-	campaign := &EmailCampaign{
-		Subject:      subject,
-		Title:        title,
-		Message:      message,
-		SenderEmail:  senderEmail,
-		ReplyEmail:   replyEmail,
-		SenderName:   senderName,
-		Accounts:     []EmailAccount{account},
-		CampaignType: "EMAIL",
-		AddToList:    "noList",
-		ContactInput: "accounts",
-		FromType:     "single",
-		Senders:      []interface{}{},
-	}
-
-	return s.SendCampaign(campaign, options)
 }

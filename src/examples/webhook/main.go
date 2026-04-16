@@ -25,13 +25,14 @@ func main() {
 
 	// Example 1: Register a webhook
 	fmt.Println("=== Registering Webhook ===")
+	customSecret := "your-webhook-secret-key"
 	webhookConfig := webhook.WebhookConfig{
 		URL: "https://your-domain.com/webhook/ccai",
 		Events: []webhook.WebhookEventType{
 			webhook.MessageSentEvent,
 			webhook.MessageReceivedEvent,
 		},
-		Secret: "your-webhook-secret-key",
+		Secret: &customSecret,
 	}
 
 	registeredWebhook, err := client.Webhook.Register(webhookConfig)
@@ -41,7 +42,7 @@ func main() {
 		fmt.Printf("Webhook registered successfully!\n")
 		fmt.Printf("Webhook ID: %s\n", registeredWebhook.ID)
 		fmt.Printf("Webhook URL: %s\n", registeredWebhook.URL)
-		fmt.Printf("Events: %v\n", registeredWebhook.Events)
+		fmt.Printf("Secret Key: %s\n", registeredWebhook.SecretKey)
 	}
 
 	// Example 2: List all webhooks
@@ -52,49 +53,74 @@ func main() {
 	} else {
 		fmt.Printf("Found %d webhook(s):\n", len(webhooks))
 		for i, wh := range webhooks {
-			fmt.Printf("  %d. ID: %s, URL: %s, Events: %v\n", i+1, wh.ID, wh.URL, wh.Events)
+			fmt.Printf("  %d. ID: %s, URL: %s\n", i+1, wh.ID, wh.URL)
 		}
 	}
 
 	// Example 3: Create webhook HTTP handler
 	fmt.Println("\n=== Setting up Webhook HTTP Handler ===")
 
-	// Create webhook handler with event processors
+	// Create webhook handler with event processor
 	webhookHandler := webhook.CreateHandler(webhook.HandlerOptions{
+		ClientID:  "YOUR_CLIENT_ID",
 		Secret:    "your-webhook-secret-key",
 		LogEvents: true,
 
-		// Handler for outbound messages (messages sent from campaigns)
-		OnMessageSent: func(event webhook.MessageSentEventData) error {
-			fmt.Printf("✅ Message sent successfully:\n")
-			fmt.Printf("   Campaign ID: %d\n", event.GetCampaign().ID)
-			fmt.Printf("   Recipient: %s\n", event.GetTo())
-			fmt.Printf("   Message: %s\n", event.GetMessage())
+		// Handler for all webhook events
+		OnEvent: func(event *webhook.WebhookEvent) error {
+			fmt.Printf("📨 Webhook Event Type: %s\n", event.EventType)
 
-			// Example: Update your database with delivery status
-			// err := updateMessageStatus(event.Campaign.ID, "sent")
-			// return err
+			switch event.EventType {
+			case "message.sent":
+				fmt.Printf("✅ Message sent successfully\n")
+				if to, ok := event.Data["To"].(string); ok {
+					fmt.Printf("   Recipient: %s\n", to)
+				}
+				if price, ok := event.Data["TotalPrice"].(float64); ok {
+					fmt.Printf("   Cost: $%v\n", price)
+				}
+				if segments, ok := event.Data["Segments"].(float64); ok {
+					fmt.Printf("   Segments: %v\n", int(segments))
+				}
 
-			return nil
-		},
+			case "message.incoming":
+				fmt.Printf("📥 Received reply\n")
+				if from, ok := event.Data["From"].(string); ok {
+					fmt.Printf("   Sender: %s\n", from)
+				}
+				if msg, ok := event.Data["Message"].(string); ok {
+					fmt.Printf("   Message: %s\n", msg)
+				}
 
-		// Handler for inbound messages (replies from recipients)
-		OnMessageReceived: func(event webhook.MessageReceivedEventData) error {
-			fmt.Printf("📥 Received reply:\n")
-			fmt.Printf("   Sender: %s\n", event.GetFrom())
-			fmt.Printf("   Message: %s\n", event.GetMessage())
-			fmt.Printf("   Campaign ID: %d\n", event.GetCampaign().ID)
+			case "message.excluded":
+				fmt.Printf("⚠️ Message excluded\n")
+				if reason, ok := event.Data["ExcludedReason"].(string); ok {
+					fmt.Printf("   Reason: %s\n", reason)
+				}
 
-			// Example: Auto-respond to certain keywords
-			message := event.GetMessage()
-			if message != "" && contains(message, "stop") {
-				fmt.Printf("🛑 Processing opt-out request from: %s\n", event.GetFrom())
-				// processOptOut(event.GetFrom())
+			case "message.error.carrier":
+				fmt.Printf("❌ Carrier error\n")
+				if code, ok := event.Data["ErrorCode"].(string); ok {
+					fmt.Printf("   Code: %s\n", code)
+				}
+				if msg, ok := event.Data["ErrorMessage"].(string); ok {
+					fmt.Printf("   Message: %s\n", msg)
+				}
+
+			case "message.error.cloudcontact":
+				fmt.Printf("🚨 System error\n")
+				if code, ok := event.Data["ErrorCode"].(string); ok {
+					fmt.Printf("   Code: %s\n", code)
+				}
+				if msg, ok := event.Data["ErrorMessage"].(string); ok {
+					fmt.Printf("   Message: %s\n", msg)
+				}
 			}
 
-			// Example: Store the reply in your database
-			// err := storeInboundMessage(event)
-			// return err
+			// Handle custom data if present
+			if customData, ok := event.Data["CustomData"].(string); ok && customData != "" {
+				fmt.Printf("📌 Custom Data: %s\n", customData)
+			}
 
 			return nil
 		},
@@ -113,21 +139,4 @@ func main() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Failed to start webhook server: %v", err)
 	}
-}
-
-// Helper function to check if a string contains a substring (case-insensitive)
-func contains(text, substring string) bool {
-	return len(text) >= len(substring) &&
-		text[:len(substring)] == substring ||
-		(len(text) > len(substring) &&
-			findSubstring(text, substring))
-}
-
-func findSubstring(text, substring string) bool {
-	for i := 0; i <= len(text)-len(substring); i++ {
-		if text[i:i+len(substring)] == substring {
-			return true
-		}
-	}
-	return false
 }

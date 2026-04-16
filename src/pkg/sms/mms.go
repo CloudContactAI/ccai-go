@@ -5,17 +5,25 @@ package sms
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // MMSService is the MMS service for sending multimedia messages through the CCAI API.
 type MMSService struct {
 	client ClientInterface
+}
+
+// StoredURLResponse represents the response from the stored URL check.
+type StoredURLResponse struct {
+	StoredURL string `json:"storedUrl"`
 }
 
 // NewMMSService creates a new MMS service instance.
@@ -60,7 +68,7 @@ func (m *MMSService) GetSignedUploadURL(fileName, fileType string, fileBasePath 
 	}
 
 	// Create the request
-	req, err := http.NewRequest("POST", "https://files.cloudcontactai.com/upload/url", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", m.client.GetFilesBaseURL()+"/upload/url", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -146,7 +154,7 @@ func (m *MMSService) UploadImageToSignedURL(signedURL, filePath, contentType str
 }
 
 // Send sends an MMS message to one or more recipients.
-func (m *MMSService) Send(pictureFileKey string, accounts []Account, message, title string, options *Options, forceNewCampaign bool) (*Response, error) {
+func (m *MMSService) Send(pictureFileKey string, accounts []Account, message, title, senderPhone string, options *Options, forceNewCampaign bool) (*Response, error) {
 	// Validate inputs
 	if pictureFileKey == "" {
 		return nil, fmt.Errorf("picture file key is required")
@@ -180,6 +188,7 @@ func (m *MMSService) Send(pictureFileKey string, accounts []Account, message, ti
 		Accounts:       accounts,
 		Message:        message,
 		Title:          title,
+		SenderPhone:    senderPhone,
 	}
 
 	// Set up headers for force new campaign if needed
@@ -212,42 +221,54 @@ func (m *MMSService) Send(pictureFileKey string, accounts []Account, message, ti
 }
 
 // SendSingle sends a single MMS message to one recipient.
-func (m *MMSService) SendSingle(pictureFileKey, firstName, lastName, phone, message, title string, options *Options, forceNewCampaign bool) (*Response, error) {
+func (m *MMSService) SendSingle(pictureFileKey, firstName, lastName, phone, message, title, customData, senderPhone string, options *Options, forceNewCampaign bool) (*Response, error) {
 	account := Account{
-		FirstName: firstName,
-		LastName:  lastName,
-		Phone:     phone,
+		FirstName:   firstName,
+		LastName:    lastName,
+		Phone:       phone,
+		MessageData: customData,
 	}
 
-	return m.Send(pictureFileKey, []Account{account}, message, title, options, forceNewCampaign)
+	return m.Send(pictureFileKey, []Account{account}, message, title, senderPhone, options, forceNewCampaign)
 }
 
-// SendWithImage completes the MMS workflow: get signed URL, upload image, and send MMS.
-func (m *MMSService) SendWithImage(imagePath, contentType string, accounts []Account, message, title string, options *Options, forceNewCampaign bool) (*Response, error) {
+// SendWithImage completes the MMS workflow: check cache, optionally upload, and send MMS.
+func (m *MMSService) SendWithImage(imagePath, contentType string, accounts []Account, message, title, senderPhone string, options *Options, forceNewCampaign bool) (*Response, error) {
 	// Create options if not provided
 	if options == nil {
 		options = &Options{}
 	}
 
-	// Step 1: Get the file name from the path
-	fileName := filepath.Base(imagePath)
+	// Step 1: Compute MD5 of the image file for caching
+	md5Hash, err := m.md5File(imagePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute MD5: %w", err)
+	}
 
-	// Notify progress if callback provided
+	extension := strings.ToLower(strings.TrimPrefix(filepath.Ext(imagePath), "."))
+	fileName := fmt.Sprintf("%s.%s", md5Hash, extension)
+	fileKey := fmt.Sprintf("%s/campaign/%s", m.client.GetClientID(), fileName)
+
+	// Step 2: Check if the same image has already been uploaded
+	options.NotifyProgress("Checking if image already uploaded")
+	storedURLResp, err := m.CheckFileUploaded(fileKey)
+	if err == nil && storedURLResp != nil && storedURLResp.StoredURL != "" {
+		// Image already uploaded, skip upload and send directly
+		options.NotifyProgress("Image already exists in S3, sending MMS")
+		return m.Send(fileKey, accounts, message, title, senderPhone, options, forceNewCampaign)
+	}
+
+	// Step 3: Get a signed URL for uploading
 	options.NotifyProgress("Getting signed upload URL")
-
-	// Step 2: Get a signed URL for uploading
 	uploadResponse, err := m.GetSignedUploadURL(fileName, contentType, "", true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signed upload URL: %w", err)
 	}
 
 	signedURL := uploadResponse.SignedS3URL
-	fileKey := uploadResponse.FileKey
 
-	// Notify progress if callback provided
+	// Step 4: Upload the image to the signed URL
 	options.NotifyProgress("Uploading image to S3")
-
-	// Step 3: Upload the image to the signed URL
 	uploadSuccess, err := m.UploadImageToSignedURL(signedURL, imagePath, contentType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload image: %w", err)
@@ -257,9 +278,39 @@ func (m *MMSService) SendWithImage(imagePath, contentType string, accounts []Acc
 		return nil, fmt.Errorf("failed to upload image to S3")
 	}
 
-	// Notify progress if callback provided
+	// Step 5: Send the MMS with the uploaded image
 	options.NotifyProgress("Image uploaded successfully, sending MMS")
+	return m.Send(fileKey, accounts, message, title, senderPhone, options, forceNewCampaign)
+}
 
-	// Step 4: Send the MMS with the uploaded image
-	return m.Send(fileKey, accounts, message, title, options, forceNewCampaign)
+// md5File calculates the MD5 hash of a file.
+func (m *MMSService) md5File(filePath string) (string, error) {
+	fileContent, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	hash := md5.Sum(fileContent)
+	return hex.EncodeToString(hash[:]), nil
+}
+
+// CheckFileUploaded checks if a file has already been uploaded to S3.
+func (m *MMSService) CheckFileUploaded(fileKey string) (*StoredURLResponse, error) {
+	endpoint := fmt.Sprintf("/clients/%s/storedUrl?fileKey=%s", m.client.GetClientID(), fileKey)
+	responseBody, err := m.client.Request("GET", endpoint, nil, nil)
+	if err != nil {
+		return &StoredURLResponse{StoredURL: ""}, nil
+	}
+
+	var response StoredURLResponse
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return &StoredURLResponse{StoredURL: ""}, nil
+	}
+
+	return &response, nil
+}
+
+// MD5FileForTest exports md5File for testing purposes.
+func (m *MMSService) MD5FileForTest(filePath string) (string, error) {
+	return m.md5File(filePath)
 }

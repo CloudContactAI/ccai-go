@@ -8,16 +8,25 @@ import "fmt"
 
 // Account represents a recipient account.
 type Account struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Phone     string `json:"phone"`
+	FirstName   string            `json:"firstName"`
+	LastName    string            `json:"lastName"`
+	Phone       string            `json:"phone"`
+	// Data holds additional key-value pairs for variable substitution in message templates.
+	// Define any keys you want and use them as ${key} in your message.
+	// Example: Data: map[string]string{"city": "Miami"}, message: "Hello from ${city}!"
+	// Sent to the API as "data" (wire format).
+	Data        map[string]string `json:"data,omitempty"`
+	// MessageData is an arbitrary string forwarded as-is to your webhook handler.
+	// Not used in the message body. Sent to the API as "messageData" (wire format).
+	MessageData string            `json:"messageData,omitempty"`
 }
 
 // Campaign represents an SMS campaign.
 type Campaign struct {
-	Accounts []Account `json:"accounts"`
-	Message  string    `json:"message"`
-	Title    string    `json:"title"`
+	Accounts    []Account `json:"accounts"`
+	Message     string    `json:"message"`
+	Title       string    `json:"title"`
+	SenderPhone string    `json:"senderPhone,omitempty"`
 }
 
 // MMSCampaign represents an MMS campaign.
@@ -26,6 +35,7 @@ type MMSCampaign struct {
 	Accounts       []Account `json:"accounts"`
 	Message        string    `json:"message"`
 	Title          string    `json:"title"`
+	SenderPhone    string    `json:"senderPhone,omitempty"`
 }
 
 // Response represents the response from the SMS API.
@@ -35,6 +45,8 @@ type Response struct {
 	CampaignID   string                 `json:"campaignId,omitempty"`
 	MessagesSent int                    `json:"messagesSent,omitempty"`
 	Timestamp    string                 `json:"timestamp,omitempty"`
+	Message      string                 `json:"message,omitempty"`
+	ResponseID   string                 `json:"responseId,omitempty"`
 	Extra        map[string]interface{} `json:"-"`
 }
 
@@ -78,5 +90,6 @@ type ClientInterface interface {
 	GetClientID() string
 	GetAPIKey() string
 	GetBaseURL() string
+	GetFilesBaseURL() string
 	Request(method, endpoint string, data interface{}, headers map[string]string) ([]byte, error)
 }

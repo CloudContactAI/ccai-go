@@ -29,6 +29,8 @@ func main() {
 		"+14156566694",
 		"Hello ${firstName}, this is a test message!",
 		"Test Campaign",
+		"",
+		"",
 		nil,
 	)
 	if err != nil {
@@ -55,6 +57,7 @@ func main() {
 		accounts,
 		"Hello ${firstName} ${lastName}, this is a test message!",
 		"Bulk Test Campaign",
+		"",
 		nil,
 	)
 	if err != nil {
