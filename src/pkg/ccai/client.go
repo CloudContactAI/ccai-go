@@ -10,18 +10,37 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/cloudcontactai/ccai-go/src/pkg/contact"
 	"github.com/cloudcontactai/ccai-go/src/pkg/email"
 	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
 	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
 )
 
+// Production URLs
+const (
+	ProdBaseURL  = "https://core.cloudcontactai.com/api"
+	ProdEmailURL = "https://email-campaigns.cloudcontactai.com/api/v1"
+	ProdFilesURL = "https://files.cloudcontactai.com"
+)
+
+// Test environment URLs
+const (
+	TestBaseURL  = "https://core-test-cloudcontactai.allcode.com/api"
+	TestEmailURL = "https://email-campaigns-test-cloudcontactai.allcode.com/api/v1"
+	TestFilesURL = "https://files-test-cloudcontactai.allcode.com"
+)
+
 // Config represents the configuration for the CCAI client.
 type Config struct {
-	ClientID string
-	APIKey   string
-	BaseURL  string
+	ClientID           string
+	APIKey             string
+	UseTestEnvironment bool
+	BaseURL            string
+	EmailBaseURL       string
+	FilesBaseURL       string
 }
 
 // Account represents a recipient account.
@@ -41,12 +60,13 @@ type EmailOptions = email.EmailOptions
 
 // Client is the main client for interacting with the CloudContactAI API.
 type Client struct {
-	config     Config
-	httpClient *http.Client
-	SMS        *sms.Service
-	MMS        *sms.MMSService
-	Webhook    *webhook.Service
-	Email      *email.Service
+	config      Config
+	httpClient  *http.Client
+	SMS         *sms.Service
+	MMS         *sms.MMSService
+	Webhook     *webhook.Service
+	Email       *email.Service
+	Contact     *contact.Service
 }
 
 // NewClient creates a new CCAI client instance.
@@ -59,10 +79,10 @@ func NewClient(config Config) (*Client, error) {
 		return nil, fmt.Errorf("API key is required")
 	}
 
-	// Set default base URL if not provided
-	if config.BaseURL == "" {
-		config.BaseURL = "https://core.cloudcontactai.com/api"
-	}
+	// Resolve URLs: explicit override > env var > test/prod default
+	config.BaseURL = resolveURL(config.BaseURL, "CCAI_BASE_URL", TestBaseURL, ProdBaseURL, config.UseTestEnvironment)
+	config.EmailBaseURL = resolveURL(config.EmailBaseURL, "CCAI_EMAIL_BASE_URL", TestEmailURL, ProdEmailURL, config.UseTestEnvironment)
+	config.FilesBaseURL = resolveURL(config.FilesBaseURL, "CCAI_FILES_BASE_URL", TestFilesURL, ProdFilesURL, config.UseTestEnvironment)
 
 	httpClient := &http.Client{
 		Timeout: 30 * time.Second,
@@ -85,7 +105,24 @@ func NewClient(config Config) (*Client, error) {
 	// Initialize the Email service
 	client.Email = email.NewService(client)
 
+	// Initialize the Contact service
+	client.Contact = contact.NewService(client)
+
 	return client, nil
+}
+
+// resolveURL picks the URL in order: explicit > env > default based on test/prod
+func resolveURL(explicit, envVar, testDefault, prodDefault string, useTest bool) string {
+	if explicit != "" {
+		return explicit
+	}
+	if env := os.Getenv(envVar); env != "" {
+		return env
+	}
+	if useTest {
+		return testDefault
+	}
+	return prodDefault
 }
 
 // GetClientID returns the client ID.
@@ -98,9 +135,24 @@ func (c *Client) GetAPIKey() string {
 	return c.config.APIKey
 }
 
-// GetBaseURL returns the base URL.
+// GetBaseURL returns the base URL for the core API.
 func (c *Client) GetBaseURL() string {
 	return c.config.BaseURL
+}
+
+// GetEmailBaseURL returns the base URL for the Email API.
+func (c *Client) GetEmailBaseURL() string {
+	return c.config.EmailBaseURL
+}
+
+// GetFilesBaseURL returns the base URL for the Files API.
+func (c *Client) GetFilesBaseURL() string {
+	return c.config.FilesBaseURL
+}
+
+// IsTestEnvironment returns whether test environment is active.
+func (c *Client) IsTestEnvironment() bool {
+	return c.config.UseTestEnvironment
 }
 
 // Request makes an authenticated API request to the CCAI API.

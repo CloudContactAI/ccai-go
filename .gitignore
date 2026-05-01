@@ -35,3 +35,8 @@ go.work
 
 # Specific files with sensitive information
 # Add any files here that might contain API keys or personal data
+# Real API tests — local only
+src/test_real.go
+test_real.go
+webhook_server.go
+WEBHOOK_SETUP.md

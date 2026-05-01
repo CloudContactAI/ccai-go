@@ -4,7 +4,10 @@
 // Package webhook provides types and utilities for handling CloudContactAI webhooks.
 package webhook
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // WebhookEventType represents the types of webhook events
 type WebhookEventType string
@@ -12,111 +15,49 @@ type WebhookEventType string
 const (
 	// MessageSentEvent represents an outbound message event
 	MessageSentEvent WebhookEventType = "message.sent"
-	// MessageReceivedEvent represents an inbound message event
+	// MessageIncomingEvent represents an inbound message event
+	MessageIncomingEvent WebhookEventType = "message.incoming"
+	// MessageReceivedEvent represents an inbound message event (legacy name)
 	MessageReceivedEvent WebhookEventType = "message.received"
+	// MessageExcludedEvent represents a message excluded during campaign
+	MessageExcludedEvent WebhookEventType = "message.excluded"
+	// MessageErrorCarrierEvent represents a carrier-level delivery failure
+	MessageErrorCarrierEvent WebhookEventType = "message.error.carrier"
+	// MessageErrorCloudcontactEvent represents a CloudContact system error
+	MessageErrorCloudcontactEvent WebhookEventType = "message.error.cloudcontact"
 )
 
-// WebhookCampaign contains campaign information included in webhook events
-type WebhookCampaign struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Message     string    `json:"message"`
-	SenderPhone string    `json:"senderPhone"`
-	CreatedAt   time.Time `json:"createdAt"`
-	RunAt       time.Time `json:"runAt"`
+// WebhookEvent represents the webhook payload sent by the server
+// This is the unified structure for all event types
+type WebhookEvent struct {
+	EventType string                 `json:"eventType"` // Type of the event (e.g., "message.sent")
+	Data      map[string]interface{} `json:"data"`      // Event-specific data
+	EventHash string                 `json:"eventHash"` // Hash computed by the backend for signature verification
 }
 
-// WebhookEventBase is the base interface for all webhook events
-type WebhookEventBase struct {
-	Campaign WebhookCampaign `json:"campaign"`
-	From     string          `json:"from"`
-	To       string          `json:"to"`
-	Message  string          `json:"message"`
-}
-
-// MessageSentEventData represents a message sent (outbound) webhook event
-type MessageSentEventData struct {
-	WebhookEventBase
-	Type WebhookEventType `json:"type"`
-}
-
-// MessageReceivedEventData represents a message received (inbound) webhook event
-type MessageReceivedEventData struct {
-	WebhookEventBase
-	Type WebhookEventType `json:"type"`
-}
-
-// WebhookEvent is a union type for all webhook events
-type WebhookEvent interface {
-	GetType() WebhookEventType
-	GetCampaign() WebhookCampaign
-	GetFrom() string
-	GetTo() string
-	GetMessage() string
-}
-
-// GetType returns the event type for MessageSentEventData
-func (e MessageSentEventData) GetType() WebhookEventType {
-	return e.Type
-}
-
-// GetCampaign returns the campaign for MessageSentEventData
-func (e MessageSentEventData) GetCampaign() WebhookCampaign {
-	return e.Campaign
-}
-
-// GetFrom returns the from field for MessageSentEventData
-func (e MessageSentEventData) GetFrom() string {
-	return e.From
-}
-
-// GetTo returns the to field for MessageSentEventData
-func (e MessageSentEventData) GetTo() string {
-	return e.To
-}
-
-// GetMessage returns the message for MessageSentEventData
-func (e MessageSentEventData) GetMessage() string {
-	return e.Message
-}
-
-// GetType returns the event type for MessageReceivedEventData
-func (e MessageReceivedEventData) GetType() WebhookEventType {
-	return e.Type
-}
-
-// GetCampaign returns the campaign for MessageReceivedEventData
-func (e MessageReceivedEventData) GetCampaign() WebhookCampaign {
-	return e.Campaign
-}
-
-// GetFrom returns the from field for MessageReceivedEventData
-func (e MessageReceivedEventData) GetFrom() string {
-	return e.From
-}
-
-// GetTo returns the to field for MessageReceivedEventData
-func (e MessageReceivedEventData) GetTo() string {
-	return e.To
-}
-
-// GetMessage returns the message for MessageReceivedEventData
-func (e MessageReceivedEventData) GetMessage() string {
-	return e.Message
+// ParseEvent parses a raw webhook JSON payload into a WebhookEvent
+func ParseEvent(payload []byte) (*WebhookEvent, error) {
+	var event WebhookEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return nil, fmt.Errorf("failed to parse webhook event: %w", err)
+	}
+	return &event, nil
 }
 
 // WebhookConfig represents the configuration for webhook integration
 type WebhookConfig struct {
 	URL    string             `json:"url"`
 	Events []WebhookEventType `json:"events"`
-	Secret string             `json:"secret,omitempty"` // Optional secret for webhook signature verification
+	Secret *string            `json:"secretKey,omitempty"` // Optional secret - if nil, server generates one automatically
 }
 
 // WebhookResponse represents the response when registering/updating webhooks
 type WebhookResponse struct {
-	ID     string             `json:"id"`
-	URL    string             `json:"url"`
-	Events []WebhookEventType `json:"events"`
+	ID              interface{}        `json:"id"`
+	URL             string             `json:"url"`
+	Method          string             `json:"method"`
+	IntegrationType string             `json:"integrationType"`
+	SecretKey       string             `json:"secretKey,omitempty"`
 }
 
 // WebhookDeleteResponse represents the response when deleting a webhook

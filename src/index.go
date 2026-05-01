@@ -1,8 +1,8 @@
 // Copyright (c) 2025 CloudContactAI LLC
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-// Package main provides the main export for the CCAI Go module
-package main
+// Package ccai provides the main export for the CCAI Go module
+package ccai
 
 import (
 	"github.com/cloudcontactai/ccai-go/src/pkg/ccai"
