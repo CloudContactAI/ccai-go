@@ -17,20 +17,24 @@ import (
 	"github.com/cloudcontactai/ccai-go/src/pkg/email"
 	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
 	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
+	"github.com/cloudcontactai/ccai-go/src/pkg/brands"
+	"github.com/cloudcontactai/ccai-go/src/pkg/campaigns"
 )
 
 // Production URLs
 const (
-	ProdBaseURL  = "https://core.cloudcontactai.com/api"
-	ProdEmailURL = "https://email-campaigns.cloudcontactai.com/api/v1"
-	ProdFilesURL = "https://files.cloudcontactai.com"
+	ProdBaseURL        = "https://core.cloudcontactai.com/api"
+	ProdEmailURL       = "https://email-campaigns.cloudcontactai.com/api/v1"
+	ProdFilesURL       = "https://files.cloudcontactai.com"
+	ProdComplianceURL  = "https://compliance.cloudcontactai.com/api"
 )
 
 // Test environment URLs
 const (
-	TestBaseURL  = "https://core-test-cloudcontactai.allcode.com/api"
-	TestEmailURL = "https://email-campaigns-test-cloudcontactai.allcode.com/api/v1"
-	TestFilesURL = "https://files-test-cloudcontactai.allcode.com"
+	TestBaseURL        = "https://core-test-cloudcontactai.allcode.com/api"
+	TestEmailURL       = "https://email-campaigns-test-cloudcontactai.allcode.com/api/v1"
+	TestFilesURL       = "https://files-test-cloudcontactai.allcode.com"
+	TestComplianceURL  = "https://compliance-test-cloudcontactai.allcode.com/api"
 )
 
 // Config represents the configuration for the CCAI client.
@@ -41,6 +45,7 @@ type Config struct {
 	BaseURL            string
 	EmailBaseURL       string
 	FilesBaseURL       string
+	ComplianceBaseURL  string
 }
 
 // Account represents a recipient account.
@@ -67,6 +72,8 @@ type Client struct {
 	Webhook     *webhook.Service
 	Email       *email.Service
 	Contact     *contact.Service
+	Brands      *brands.Service
+	Campaigns   *campaigns.Service
 }
 
 // NewClient creates a new CCAI client instance.
@@ -83,6 +90,7 @@ func NewClient(config Config) (*Client, error) {
 	config.BaseURL = resolveURL(config.BaseURL, "CCAI_BASE_URL", TestBaseURL, ProdBaseURL, config.UseTestEnvironment)
 	config.EmailBaseURL = resolveURL(config.EmailBaseURL, "CCAI_EMAIL_BASE_URL", TestEmailURL, ProdEmailURL, config.UseTestEnvironment)
 	config.FilesBaseURL = resolveURL(config.FilesBaseURL, "CCAI_FILES_BASE_URL", TestFilesURL, ProdFilesURL, config.UseTestEnvironment)
+	config.ComplianceBaseURL = resolveURL(config.ComplianceBaseURL, "CCAI_COMPLIANCE_BASE_URL", TestComplianceURL, ProdComplianceURL, config.UseTestEnvironment)
 
 	httpClient := &http.Client{
 		Timeout: 30 * time.Second,
@@ -107,6 +115,12 @@ func NewClient(config Config) (*Client, error) {
 
 	// Initialize the Contact service
 	client.Contact = contact.NewService(client)
+
+	// Initialize the Brands service
+	client.Brands = brands.NewService(client)
+
+	// Initialize the Campaigns service
+	client.Campaigns = campaigns.NewService(client)
 
 	return client, nil
 }
@@ -148,6 +162,11 @@ func (c *Client) GetEmailBaseURL() string {
 // GetFilesBaseURL returns the base URL for the Files API.
 func (c *Client) GetFilesBaseURL() string {
 	return c.config.FilesBaseURL
+}
+
+// GetComplianceBaseURL returns the base URL for the Compliance API.
+func (c *Client) GetComplianceBaseURL() string {
+	return c.config.ComplianceBaseURL
 }
 
 // IsTestEnvironment returns whether test environment is active.
@@ -238,6 +257,10 @@ func (c *Client) CustomRequest(method, endpoint string, data interface{}, custom
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode == 204 {
+		return []byte{}, nil
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
