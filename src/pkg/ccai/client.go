@@ -73,8 +73,8 @@ type Client struct {
 	Webhook          *webhook.Service
 	Email            *email.Service
 	Contact          *contact.Service
-	Brands      *brands.Service
-	Campaigns   *campaigns.Service
+	Brands      	 *brands.Service
+	Campaigns   	 *campaigns.Service
 	ContactValidator *contactvalidator.Service
 }
 
