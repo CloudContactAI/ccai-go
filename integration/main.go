@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cloudcontactai/ccai-go/src/pkg/brands"
+	"github.com/cloudcontactai/ccai-go/src/pkg/campaigns"
 	"github.com/cloudcontactai/ccai-go/src/pkg/ccai"
 	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
 	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
@@ -44,6 +46,9 @@ func hmacSHA256Base64(secret, message string) string {
 	mac.Write([]byte(message))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
+
+func strPtr(s string) *string { return &s }
+func boolPtr(b bool) *bool    { return &b }
 
 // writeTempPNG writes a 1×1 PNG to a temp file and returns the path.
 func writeTempPNG() (string, error) {
@@ -517,6 +522,189 @@ func main() {
 	run("31 Contact.SetDoNotText(false)", func() error {
 		_, err := client.Contact.SetDoNotText(false, "", phone1)
 		return err
+	})
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// BRANDS TESTS (32–36)
+	// ─────────────────────────────────────────────────────────────────────────
+	fmt.Println("\n--- Brands ---")
+
+	var createdBrandID int64
+
+	// 32. Brands.Create
+	run("32 Brands.create", func() error {
+		resp, err := client.Brands.Create(brands.BrandRequest{
+			LegalCompanyName: strPtr("Test Company LLC"),
+			EntityType:       strPtr("PRIVATE_PROFIT"),
+			TaxId:            strPtr("123456789"),
+			TaxIdCountry:     strPtr("US"),
+			Country:          strPtr("US"),
+			VerticalType:     strPtr("TECHNOLOGY"),
+			WebsiteUrl:       strPtr("https://example.com"),
+			Street:           strPtr("123 Main St"),
+			City:             strPtr("Miami"),
+			State:            strPtr("FL"),
+			PostalCode:       strPtr("33101"),
+			ContactFirstName: strPtr(firstName1),
+			ContactLastName:  strPtr(lastName1),
+			ContactEmail:     strPtr(email1),
+			ContactPhone:     strPtr(phone1),
+		})
+		if err != nil {
+			return err
+		}
+		createdBrandID = resp.ID
+		if createdBrandID == 0 {
+			return fmt.Errorf("brandId is 0 after create")
+		}
+		return nil
+	})
+
+	// 33. Brands.Get
+	run("33 Brands.get", func() error {
+		if createdBrandID == 0 {
+			return fmt.Errorf("no brandId from test 32")
+		}
+		_, err := client.Brands.Get(createdBrandID)
+		return err
+	})
+
+	// 34. Brands.List
+	run("34 Brands.list", func() error {
+		_, err := client.Brands.List()
+		return err
+	})
+
+	// 35. Brands.Update
+	run("35 Brands.update", func() error {
+		if createdBrandID == 0 {
+			return fmt.Errorf("no brandId from test 32")
+		}
+		_, err := client.Brands.Update(createdBrandID, brands.BrandRequest{
+			City: strPtr("Orlando"),
+		})
+		return err
+	})
+
+	// 36. Brands.Delete
+	run("36 Brands.delete", func() error {
+		if createdBrandID == 0 {
+			return fmt.Errorf("no brandId from test 32")
+		}
+		return client.Brands.Delete(createdBrandID)
+	})
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// CAMPAIGNS TESTS (37–42)
+	// ─────────────────────────────────────────────────────────────────────────
+	fmt.Println("\n--- Campaigns ---")
+
+	var campaignBrandID int64
+	var createdCampaignID int64
+
+	// 37. Campaign setup — create a brand to associate with campaign
+	run("37 Campaign setup — Brands.create", func() error {
+		resp, err := client.Brands.Create(brands.BrandRequest{
+			LegalCompanyName: strPtr("Campaign Test LLC"),
+			EntityType:       strPtr("PRIVATE_PROFIT"),
+			TaxId:            strPtr("987654321"),
+			TaxIdCountry:     strPtr("US"),
+			Country:          strPtr("US"),
+			VerticalType:     strPtr("TECHNOLOGY"),
+			WebsiteUrl:       strPtr("https://example.com"),
+			Street:           strPtr("456 Test Ave"),
+			City:             strPtr("Miami"),
+			State:            strPtr("FL"),
+			PostalCode:       strPtr("33101"),
+			ContactFirstName: strPtr(firstName1),
+			ContactLastName:  strPtr(lastName1),
+			ContactEmail:     strPtr(email1),
+			ContactPhone:     strPtr(phone1),
+		})
+		if err != nil {
+			return err
+		}
+		campaignBrandID = resp.ID
+		if campaignBrandID == 0 {
+			return fmt.Errorf("brandId is 0 after create")
+		}
+		return nil
+	})
+
+	// 38. Campaigns.Create
+	run("38 Campaigns.create", func() error {
+		if campaignBrandID == 0 {
+			return fmt.Errorf("no brandId from test 37")
+		}
+		resp, err := client.Campaigns.Create(campaigns.CampaignRequest{
+			BrandID:          campaignBrandID,
+			UseCase:          "MARKETING",
+			Description:      "Integration test campaign for automated testing",
+			MessageFlow:      "Customers opt-in via website form at https://example.com/sms-signup",
+			HasEmbeddedLinks: boolPtr(false),
+			HasEmbeddedPhone: boolPtr(false),
+			IsAgeGated:       boolPtr(false),
+			IsDirectLending:  boolPtr(false),
+			OptInKeywords:    []string{"START", "YES"},
+			OptInMessage:     "You have opted in to receive messages. Reply STOP to unsubscribe.",
+			OptInProofUrl:    "https://example.com/opt-in-proof",
+			HelpKeywords:     []string{"HELP", "INFO"},
+			HelpMessage:      "For help reply HELP or call 1-800-555-0000.",
+			OptOutKeywords:   []string{"STOP", "END"},
+			OptOutMessage:    "You have been unsubscribed. Reply START to opt back in. STOP",
+			SampleMessages: []string{
+				"Hello, this is a test message. Reply STOP to unsubscribe.",
+				"Reminder: your appointment is tomorrow. Reply HELP for assistance.",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		createdCampaignID = resp.ID
+		if createdCampaignID == 0 {
+			return fmt.Errorf("campaignId is 0 after create")
+		}
+		return nil
+	})
+
+	// 39. Campaigns.Get
+	run("39 Campaigns.get", func() error {
+		if createdCampaignID == 0 {
+			return fmt.Errorf("no campaignId from test 38")
+		}
+		_, err := client.Campaigns.Get(createdCampaignID)
+		return err
+	})
+
+	// 40. Campaigns.List
+	run("40 Campaigns.list", func() error {
+		_, err := client.Campaigns.List()
+		return err
+	})
+
+	// 41. Campaigns.Update
+	run("41 Campaigns.update", func() error {
+		if createdCampaignID == 0 {
+			return fmt.Errorf("no campaignId from test 38")
+		}
+		_, err := client.Campaigns.Update(createdCampaignID, campaigns.CampaignRequest{
+			Description: "Updated integration test campaign description",
+		})
+		return err
+	})
+
+	// 42. Campaigns.Delete (also cleans up campaign brand)
+	run("42 Campaigns.delete", func() error {
+		if createdCampaignID == 0 {
+			return fmt.Errorf("no campaignId from test 38")
+		}
+		if err := client.Campaigns.Delete(createdCampaignID); err != nil {
+			return err
+		}
+		if campaignBrandID != 0 {
+			_ = client.Brands.Delete(campaignBrandID)
+		}
+		return nil
 	})
 
 	// ─────────────────────────────────────────────────────────────────────────
