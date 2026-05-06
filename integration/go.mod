@@ -1,6 +1,6 @@
 module ccai-test-go
 
-go 1.21
+go 1.21.6
 
 require github.com/cloudcontactai/ccai-go v0.0.0-00010101000000-000000000000
 
