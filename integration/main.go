@@ -12,6 +12,7 @@ import (
 	"github.com/cloudcontactai/ccai-go/src/pkg/brands"
 	"github.com/cloudcontactai/ccai-go/src/pkg/campaigns"
 	"github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+	"github.com/cloudcontactai/ccai-go/src/pkg/contactvalidator"
 	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
 	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
 )
@@ -88,11 +89,11 @@ func main() {
 	lastName3 := mustEnv("CCAI_TEST_LAST_NAME_3")
 	webhookURL := mustEnv("WEBHOOK_URL")
 
-	// ── Create client ────────────────────────────────────────────────────────
+	// ── Create client — use CCAI_BASE_URL if set (local dev), otherwise use test environment
 	client, err := ccai.NewClient(ccai.Config{
 		ClientID:           clientID,
 		APIKey:             apiKey,
-		UseTestEnvironment: true,
+		UseTestEnvironment: os.Getenv("CCAI_BASE_URL") == "",
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: failed to create client: %v\n", err)
@@ -703,6 +704,56 @@ func main() {
 		}
 		if campaignBrandID != 0 {
 			_ = client.Brands.Delete(campaignBrandID)
+		}
+		return nil
+	})
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// 43-46: ContactValidator
+	// ─────────────────────────────────────────────────────────────────────────
+	run("43 ContactValidator.ValidateEmail", func() error {
+		resp, err := client.ContactValidator.ValidateEmail(email1)
+		if err != nil {
+			return err
+		}
+		if resp.Status == "" {
+			return fmt.Errorf("status is empty")
+		}
+		return nil
+	})
+
+	run("44 ContactValidator.ValidateEmails", func() error {
+		resp, err := client.ContactValidator.ValidateEmails([]string{email1, email2})
+		if err != nil {
+			return err
+		}
+		if resp.Summary.Total != 2 {
+			return fmt.Errorf("expected summary.total=2, got %d", resp.Summary.Total)
+		}
+		return nil
+	})
+
+	run("45 ContactValidator.ValidatePhone", func() error {
+		resp, err := client.ContactValidator.ValidatePhone(phone1, "")
+		if err != nil {
+			return err
+		}
+		if resp.Status == "" {
+			return fmt.Errorf("status is empty")
+		}
+		return nil
+	})
+
+	run("46 ContactValidator.ValidatePhones", func() error {
+		resp, err := client.ContactValidator.ValidatePhones([]contactvalidator.PhoneInput{
+			{Phone: phone1},
+			{Phone: phone2},
+		})
+		if err != nil {
+			return err
+		}
+		if resp.Summary.Total != 2 {
+			return fmt.Errorf("expected summary.total=2, got %d", resp.Summary.Total)
 		}
 		return nil
 	})
