@@ -312,6 +312,75 @@ func main() {
 }
 ```
 
+### Contact Validator
+
+Validate email addresses and phone numbers.
+
+> Bulk endpoints accept up to 50 contacts per request and are processed server-side in chunks.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/pkg/contactvalidator"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
+
+    // Validate a single email
+    emailResult, err := client.ContactValidator.ValidateEmail("user@example.com")
+    if err != nil {
+        log.Fatalf("Failed to validate email: %v", err)
+    }
+    fmt.Printf("Email status: %s\n", emailResult.Status) // "valid" | "invalid" | "risky"
+
+    // Validate multiple emails (up to 50, processed server-side in chunks)
+    bulkEmails, err := client.ContactValidator.ValidateEmails([]string{
+        "user@example.com",
+        "bad@invalid.xyz",
+    })
+    if err != nil {
+        log.Fatalf("Failed to validate emails: %v", err)
+    }
+    fmt.Printf("Email summary: %+v\n", bulkEmails.Summary)
+
+    // Validate a single phone number
+    phoneResult, err := client.ContactValidator.ValidatePhone("+15551234567", "US")
+    if err != nil {
+        log.Fatalf("Failed to validate phone: %v", err)
+    }
+    fmt.Printf("Phone status: %s\n", phoneResult.Status) // "valid" | "invalid" | "landline"
+
+    // Validate multiple phone numbers (up to 50, processed server-side in chunks)
+    bulkPhones, err := client.ContactValidator.ValidatePhones([]contactvalidator.PhoneInput{
+        {Phone: "+15551234567"},
+        {Phone: "+15559876543", CountryCode: "US"},
+    })
+    if err != nil {
+        log.Fatalf("Failed to validate phones: %v", err)
+    }
+    fmt.Printf("Phone summary: %+v\n", bulkPhones.Summary)
+}
+```
+
 ### Webhooks
 
 ```go
@@ -472,6 +541,7 @@ response, err := client.SMS.Send(
 - Send MMS messages with images (automatic S3 upload)
 - Send Email campaigns with HTML content
 - Manage contact opt-out preferences (SetDoNotText)
+- Validate email addresses (valid/invalid/risky) and phone numbers (valid/invalid/landline)
 - Webhook management: register, list, update, delete
 - Webhook signature verification (HMAC-SHA256)
 - Template variable substitution (`${firstName}`, `${lastName}`)
