@@ -39,4 +39,4 @@ type (
 var NewClient = ccai.NewClient
 
 // Version is the current version of the CCAI Go client
-const Version = "1.0.0"
+const Version = "1.1.0"
