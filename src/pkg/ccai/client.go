@@ -13,12 +13,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/cloudcontactai/ccai-go/src/pkg/brands"
+	"github.com/cloudcontactai/ccai-go/src/pkg/campaigns"
 	"github.com/cloudcontactai/ccai-go/src/pkg/contact"
+	"github.com/cloudcontactai/ccai-go/src/pkg/contactvalidator"
 	"github.com/cloudcontactai/ccai-go/src/pkg/email"
 	"github.com/cloudcontactai/ccai-go/src/pkg/sms"
 	"github.com/cloudcontactai/ccai-go/src/pkg/webhook"
-	"github.com/cloudcontactai/ccai-go/src/pkg/brands"
-	"github.com/cloudcontactai/ccai-go/src/pkg/campaigns"
 )
 
 // Production URLs
@@ -65,15 +66,16 @@ type EmailOptions = email.EmailOptions
 
 // Client is the main client for interacting with the CloudContactAI API.
 type Client struct {
-	config      Config
-	httpClient  *http.Client
-	SMS         *sms.Service
-	MMS         *sms.MMSService
-	Webhook     *webhook.Service
-	Email       *email.Service
-	Contact     *contact.Service
+	config           Config
+	httpClient       *http.Client
+	SMS              *sms.Service
+	MMS              *sms.MMSService
+	Webhook          *webhook.Service
+	Email            *email.Service
+	Contact          *contact.Service
 	Brands      *brands.Service
 	Campaigns   *campaigns.Service
+	ContactValidator *contactvalidator.Service
 }
 
 // NewClient creates a new CCAI client instance.
@@ -121,6 +123,9 @@ func NewClient(config Config) (*Client, error) {
 
 	// Initialize the Campaigns service
 	client.Campaigns = campaigns.NewService(client)
+
+	// Initialize the ContactValidator service
+	client.ContactValidator = contactvalidator.NewService(client)
 
 	return client, nil
 }
