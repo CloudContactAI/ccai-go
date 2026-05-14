@@ -6,7 +6,7 @@ package contactvalidator
 
 // EmailValidationResult represents the validation result for an email address.
 type EmailValidationResult struct {
-	Contact string                  `json:"contact"`
+	ContactField string              `json:"contactField"`
 	Type     string                 `json:"type"`
 	Status   string                 `json:"status"`
 	Metadata map[string]interface{} `json:"metadata"`
@@ -14,7 +14,7 @@ type EmailValidationResult struct {
 
 // PhoneValidationResult represents the validation result for a phone number.
 type PhoneValidationResult struct {
-	Contact string                  `json:"contact"`
+	ContactField string              `json:"contactField"`
 	Type     string                 `json:"type"`
 	Status   string                 `json:"status"`
 	Metadata map[string]interface{} `json:"metadata"`
