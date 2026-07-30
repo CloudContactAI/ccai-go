@@ -1,6 +1,6 @@
 # CCAI Go Client
 
-A Go client for interacting with the Cloud Contact AI API that allows you to easily send SMS and MMS messages, send email campaigns, manage webhooks, and manage contact opt-out preferences.
+A Go client for interacting with the Cloud Contact AI API that allows you to easily send SMS and MMS messages, send email campaigns, manage webhooks, manage contact opt-out preferences, register brands for TCR verification, and register campaigns for TCR carrier vetting.
 
 ## Requirements
 
@@ -489,6 +489,193 @@ func main() {
 }
 ```
 
+### Brand Registration
+
+Register and manage brands for TCR verification.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/cloudcontactai/ccai-go/pkg/brands"
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
+
+    // Create a brand
+    brand, err := client.Brands.Create(brands.BrandRequest{
+        LegalCompanyName: "Collect.org Inc.",
+        Dba:              "Collect",
+        EntityType:       "NON_PROFIT",
+        TaxID:            "123456789",
+        TaxIDCountry:     "US",
+        Country:          "US",
+        VerticalType:     "NON_PROFIT",
+        WebsiteURL:       "https://www.collect.org",
+        Street:           "123 Main Street",
+        City:             "San Francisco",
+        State:            "CA",
+        PostalCode:       "94105",
+        ContactFirstName: "Jane",
+        ContactLastName:  "Doe",
+        ContactEmail:     "jane@collect.org",
+        ContactPhone:     "+14155551234",
+    })
+    if err != nil {
+        log.Fatalf("Failed to create brand: %v", err)
+    }
+    fmt.Printf("Brand created with ID: %d\n", brand.ID)
+
+    // Get a brand by ID
+    fetched, err := client.Brands.Get(brand.ID)
+    if err != nil {
+        log.Fatalf("Failed to get brand: %v", err)
+    }
+    fmt.Printf("Website match score: %v\n", fetched.WebsiteMatchScore)
+
+    // List all brands
+    brandList, err := client.Brands.List()
+    if err != nil {
+        log.Fatalf("Failed to list brands: %v", err)
+    }
+    fmt.Printf("Found %d brand(s)\n", len(brandList))
+
+    // Update a brand (partial update)
+    _, err = client.Brands.Update(brand.ID, brands.BrandRequest{
+        Street: "456 Oak Avenue",
+        City:   "Los Angeles",
+    })
+    if err != nil {
+        log.Fatalf("Failed to update brand: %v", err)
+    }
+
+    // Delete a brand
+    err = client.Brands.Delete(brand.ID)
+    if err != nil {
+        log.Fatalf("Failed to delete brand: %v", err)
+    }
+}
+```
+
+**Entity Types:** `PRIVATE_PROFIT`, `PUBLIC_PROFIT`, `NON_PROFIT`, `GOVERNMENT`, `SOLE_PROPRIETOR`
+
+> Note: `PUBLIC_PROFIT` entities require `StockSymbol` and `StockExchange` fields.
+
+**Vertical Types:** `AUTOMOTIVE`, `AGRICULTURE`, `BANKING`, `COMMUNICATION`, `CONSTRUCTION`, `EDUCATION`, `ENERGY`, `ENTERTAINMENT`, `GOVERNMENT`, `HEALTHCARE`, `HOSPITALITY`, `INSURANCE`, `LEGAL`, `MANUFACTURING`, `NON_PROFIT`, `PROFESSIONAL`, `REAL_ESTATE`, `RETAIL`, `TECHNOLOGY`, `TRANSPORTATION`
+
+### Campaign Registration
+
+Register and manage campaigns for TCR carrier vetting.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/cloudcontactai/ccai-go/pkg/campaigns"
+    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v", err)
+    }
+
+    client, err := ccai.NewClient(ccai.Config{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        APIKey:   os.Getenv("CCAI_API_KEY"),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create CCAI client: %v", err)
+    }
+
+    // Create a campaign
+    campaign, err := client.Campaigns.Create(campaigns.CampaignRequest{
+        BrandID:          1,
+        UseCase:          "MIXED",
+        SubUseCases:      []string{"CUSTOMER_CARE", "TWO_FACTOR_AUTHENTICATION", "ACCOUNT_NOTIFICATION"},
+        Description:      "Security codes and support messaging.",
+        MessageFlow:      "Users opt-in via signup form at https://example.com/signup",
+        HasEmbeddedLinks: true,
+        HasEmbeddedPhone: false,
+        IsAgeGated:       false,
+        IsDirectLending:  false,
+        OptInKeywords:    []string{"START"},
+        OptInMessage:     "Welcome! Reply STOP to cancel.",
+        OptInProofURL:    "https://example.com/opt-in-proof.png",
+        HelpKeywords:     []string{"HELP"},
+        HelpMessage:      "For HELP email support@example.com.",
+        OptOutKeywords:   []string{"STOP"},
+        OptOutMessage:    "STOP received. You are unsubscribed.",
+        SampleMessages: []string{
+            "Your code is 554321. Reply STOP to cancel.",
+            "Your ticket has been updated. Reply HELP for info.",
+        },
+    })
+    if err != nil {
+        log.Fatalf("Failed to create campaign: %v", err)
+    }
+    fmt.Printf("Campaign created with ID: %d\n", campaign.ID)
+
+    // Get a campaign by ID
+    fetched, err := client.Campaigns.Get(campaign.ID)
+    if err != nil {
+        log.Fatalf("Failed to get campaign: %v", err)
+    }
+    fmt.Printf("Campaign use case: %s\n", fetched.UseCase)
+
+    // List all campaigns
+    campaignList, err := client.Campaigns.List()
+    if err != nil {
+        log.Fatalf("Failed to list campaigns: %v", err)
+    }
+    fmt.Printf("Found %d campaign(s)\n", len(campaignList))
+
+    // Update a campaign (partial update)
+    _, err = client.Campaigns.Update(campaign.ID, campaigns.CampaignRequest{
+        Description: "Updated description.",
+    })
+    if err != nil {
+        log.Fatalf("Failed to update campaign: %v", err)
+    }
+
+    // Delete a campaign
+    err = client.Campaigns.Delete(campaign.ID)
+    if err != nil {
+        log.Fatalf("Failed to delete campaign: %v", err)
+    }
+}
+```
+
+**Use Cases:** `TWO_FACTOR_AUTHENTICATION`, `ACCOUNT_NOTIFICATION`, `CUSTOMER_CARE`, `DELIVERY_NOTIFICATION`, `FRAUD_ALERT`, `HIGHER_EDUCATION`, `LOW_VOLUME_MIXED`, `MARKETING`, `MIXED`, `POLLING_VOTING`, `PUBLIC_SERVICE_ANNOUNCEMENT`, `SECURITY_ALERT`
+
+> Note: `MIXED` and `LOW_VOLUME_MIXED` campaigns require 2–3 `SubUseCases`.
+
+**Sub-Use Cases:** `TWO_FACTOR_AUTHENTICATION`, `ACCOUNT_NOTIFICATION`, `CUSTOMER_CARE`, `DELIVERY_NOTIFICATION`, `FRAUD_ALERT`, `MARKETING`, `POLLING_VOTING`
+
 ### With Progress Tracking
 
 ```go
@@ -542,6 +729,8 @@ response, err := client.SMS.Send(
 - Send Email campaigns with HTML content
 - Manage contact opt-out preferences (SetDoNotText)
 - Validate email addresses (valid/invalid/risky) and phone numbers (valid/invalid/landline)
+- Brand registration and management for TCR verification
+- Campaign registration and management for TCR carrier vetting
 - Webhook management: register, list, update, delete
 - Webhook signature verification (HMAC-SHA256)
 - Template variable substitution (`${firstName}`, `${lastName}`)
