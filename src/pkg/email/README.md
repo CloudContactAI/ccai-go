@@ -22,7 +22,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
 )
 
 func main() {
@@ -42,6 +42,7 @@ func main() {
         "john@example.com",                    // email
         "Welcome to Our Service",              // subject
         "<p>Hello John, welcome!</p>",         // message (HTML)
+        "",                                    // textContent (optional plain-text alternative)
         "noreply@yourcompany.com",             // senderEmail
         "support@yourcompany.com",             // replyEmail
         "Your Company",                        // senderName
