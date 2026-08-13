@@ -4,7 +4,7 @@ A Go client for interacting with the Cloud Contact AI API that allows you to eas
 
 ## Requirements
 
-- Go 1.18 or higher
+- Go 1.21.6 or higher
 
 ## Installation
 
@@ -33,7 +33,7 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
     "github.com/joho/godotenv"
 )
 
@@ -60,6 +60,7 @@ func main() {
         "recipient@example.com",             // email
         "Test Email Subject",                // subject
         "<p>Hello John, this is a test!</p>", // message (HTML)
+        "",                                   // textContent (optional plain-text alternative)
         "noreply@cloudcontactai.com",        // senderEmail
         "support@cloudcontactai.com",        // replyEmail
         "CloudContactAI",                    // senderName
@@ -70,7 +71,9 @@ func main() {
         log.Fatalf("Failed to send email: %v", err)
     }
 
-    fmt.Printf("Email sent with ID: %d\n", response.ID)
+    if response.ID != nil {
+        fmt.Printf("Email sent with ID: %d\n", *response.ID)
+    }
 }
 ```
 
@@ -84,8 +87,8 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
-    "github.com/cloudcontactai/ccai-go/pkg/sms"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/sms"
     "github.com/joho/godotenv"
 )
 
@@ -112,13 +115,15 @@ func main() {
 		"+14156566694",
 		"Hello ${firstName}, this is a test message!",
 		"Test Campaign",
-		nil,
+		"", // customData (optional)
+		"", // senderPhone (optional)
+		nil, // options
 	)
 	if err != nil {
 		log.Fatalf("Failed to send SMS: %v", err)
 	}
 
-	fmt.Printf("Message sent with ID: %s\n", response.ID)
+	fmt.Printf("Message sent with ID: %s\n", response.GetID())
 
 	// Send to multiple recipients
 	accounts := []sms.Account{
@@ -138,7 +143,8 @@ func main() {
 		accounts,
 		"Hello ${firstName} ${lastName}, this is a test message!",
 		"Bulk Test Campaign",
-		nil,
+		"", // senderPhone (optional)
+		nil, // options
 	)
 	if err != nil {
 		log.Fatalf("Failed to send bulk SMS: %v", err)
@@ -188,8 +194,8 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
-    "github.com/cloudcontactai/ccai-go/pkg/sms"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/sms"
     "github.com/joho/godotenv"
 )
 
@@ -211,7 +217,6 @@ func main() {
 
 	// Define progress tracking
 	options := &sms.Options{
-		Timeout: 60,
 		OnProgress: func(status string) {
 			fmt.Printf("Progress: %s\n", status)
 		},
@@ -235,6 +240,7 @@ func main() {
 		[]sms.Account{account},
 		"Hello ${firstName}, check out this image!",
 		"MMS Campaign Example",
+		"", // senderPhone (optional)
 		options,
 		true,
 	)
@@ -280,7 +286,8 @@ if uploadSuccess {
 		accounts,
 		"Hello ${firstName}, check out this image!",
 		"MMS Campaign Example",
-		nil,
+		"", // senderPhone (optional)
+		nil, // options
 		true,
 	)
 	if err != nil {
@@ -303,7 +310,7 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
     "github.com/joho/godotenv"
 )
 
@@ -356,8 +363,8 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
-    "github.com/cloudcontactai/ccai-go/pkg/contactvalidator"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/contactvalidator"
     "github.com/joho/godotenv"
 )
 
@@ -422,8 +429,8 @@ import (
     "net/http"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
-    "github.com/cloudcontactai/ccai-go/pkg/webhook"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/webhook"
     "github.com/joho/godotenv"
 )
 
@@ -449,7 +456,8 @@ func main() {
     if err != nil {
         log.Fatalf("Failed to register webhook: %v", err)
     }
-    fmt.Printf("Webhook registered with ID: %s\n", wh.ID)
+    webhookID := fmt.Sprintf("%v", wh.ID) // wh.ID is interface{}; convert once for Update/Delete
+    fmt.Printf("Webhook registered with ID: %s\n", webhookID)
     fmt.Printf("Secret Key: %s\n", wh.SecretKey)  // Save this securely!
 
     // Or provide a custom secret if needed
@@ -471,7 +479,7 @@ func main() {
     fmt.Printf("Registered webhooks: %d\n", len(webhooks))
 
     // Update a webhook
-    updated, err := client.Webhook.Update(wh.ID, webhook.WebhookConfig{
+    updated, err := client.Webhook.Update(webhookID, webhook.WebhookConfig{
         URL: "https://your-app.com/api/new-webhook",
     })
     if err != nil {
@@ -480,48 +488,35 @@ func main() {
     fmt.Printf("Updated webhook URL: %s\n", updated.URL)
 
     // Delete a webhook
-    _, err = client.Webhook.Delete(wh.ID)
+    _, err = client.Webhook.Delete(webhookID)
     if err != nil {
         log.Fatalf("Failed to delete webhook: %v", err)
     }
 
-    // Verify webhook signature (in your HTTP handler)
-    http.HandleFunc("/api/ccai-webhook", func(w http.ResponseWriter, r *http.Request) {
-        signature := r.Header.Get("X-CCAI-Signature")
-        
-        // Parse the JSON body to get eventHash
-        var payload map[string]interface{}
-        if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-            http.Error(w, "Invalid JSON", http.StatusBadRequest)
-            return
-        }
-        defer r.Body.Close()
-
-        clientID := os.Getenv("CCAI_CLIENT_ID")
-        eventHash, ok := payload["eventHash"].(string)
-        if !ok {
-            http.Error(w, "Missing eventHash", http.StatusBadRequest)
-            return
-        }
-
-        valid := client.Webhook.VerifySignature(signature, clientID, eventHash, "your-webhook-secret")
-        if !valid {
-            http.Error(w, "Invalid signature", http.StatusUnauthorized)
-            return
-        }
-
-        // Process the event
-        eventData := payload["data"].(map[string]interface{})
-        fmt.Printf("Event received: %v\n", eventData)
-        
-        w.WriteHeader(http.StatusOK)
+    // Handle incoming webhook events with the built-in HTTP handler helper.
+    // It rejects non-POST requests, verifies the signature (when Secret is set),
+    // and dispatches the parsed event to OnEvent — no manual JSON parsing needed.
+    handler := webhook.CreateHandler(webhook.HandlerOptions{
+        ClientID: os.Getenv("CCAI_CLIENT_ID"),
+        Secret:   "your-webhook-secret", // the secret from webhook registration
+        OnEvent: func(event *webhook.WebhookEvent) error {
+            fmt.Printf("Event received: %s\n", event.EventType)
+            fmt.Printf("Data: %v\n", event.Data)
+            return nil
+        },
+        LogEvents: true,
     })
+
+    http.HandleFunc("/api/ccai-webhook", handler)
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
 ### Brand Registration
 
-Register and manage brands for TCR verification.
+Register and manage brands for TCR (The Campaign Registry) business verification.
+
+`BrandRequest` fields are all pointers so that partial updates only send the fields you set. A small `strPtr` helper makes that ergonomic:
 
 ```go
 package main
@@ -531,10 +526,12 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/brands"
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/brands"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
     "github.com/joho/godotenv"
 )
+
+func strPtr(s string) *string { return &s }
 
 func main() {
     err := godotenv.Load()
@@ -552,22 +549,22 @@ func main() {
 
     // Create a brand
     brand, err := client.Brands.Create(brands.BrandRequest{
-        LegalCompanyName: "Collect.org Inc.",
-        Dba:              "Collect",
-        EntityType:       "NON_PROFIT",
-        TaxID:            "123456789",
-        TaxIDCountry:     "US",
-        Country:          "US",
-        VerticalType:     "NON_PROFIT",
-        WebsiteURL:       "https://www.collect.org",
-        Street:           "123 Main Street",
-        City:             "San Francisco",
-        State:            "CA",
-        PostalCode:       "94105",
-        ContactFirstName: "Jane",
-        ContactLastName:  "Doe",
-        ContactEmail:     "jane@collect.org",
-        ContactPhone:     "+14155551234",
+        LegalCompanyName: strPtr("Collect.org Inc."),
+        Dba:              strPtr("Collect"),
+        EntityType:       strPtr("NON_PROFIT"),
+        TaxId:            strPtr("123456789"),
+        TaxIdCountry:     strPtr("US"),
+        Country:          strPtr("US"),
+        VerticalType:     strPtr("NON_PROFIT"),
+        WebsiteUrl:       strPtr("https://www.collect.org"),
+        Street:           strPtr("123 Main Street"),
+        City:             strPtr("San Francisco"),
+        State:            strPtr("CA"),
+        PostalCode:       strPtr("94105"),
+        ContactFirstName: strPtr("Jane"),
+        ContactLastName:  strPtr("Doe"),
+        ContactEmail:     strPtr("jane@collect.org"),
+        ContactPhone:     strPtr("+14155551234"),
     })
     if err != nil {
         log.Fatalf("Failed to create brand: %v", err)
@@ -582,38 +579,42 @@ func main() {
     fmt.Printf("Website match score: %v\n", fetched.WebsiteMatchScore)
 
     // List all brands
-    brandList, err := client.Brands.List()
+    allBrands, err := client.Brands.List()
     if err != nil {
         log.Fatalf("Failed to list brands: %v", err)
     }
-    fmt.Printf("Found %d brand(s)\n", len(brandList))
+    fmt.Printf("Found %d brand(s)\n", len(allBrands))
 
     // Update a brand (partial update)
-    _, err = client.Brands.Update(brand.ID, brands.BrandRequest{
-        Street: "456 Oak Avenue",
-        City:   "Los Angeles",
+    updated, err := client.Brands.Update(brand.ID, brands.BrandRequest{
+        Street: strPtr("456 Oak Avenue"),
+        City:   strPtr("Los Angeles"),
     })
     if err != nil {
         log.Fatalf("Failed to update brand: %v", err)
     }
+    fmt.Printf("Brand updated: %s, %s\n", updated.Street, updated.City)
 
     // Delete a brand
-    err = client.Brands.Delete(brand.ID)
-    if err != nil {
+    if err := client.Brands.Delete(brand.ID); err != nil {
         log.Fatalf("Failed to delete brand: %v", err)
     }
 }
 ```
 
-**Entity Types:** `PRIVATE_PROFIT`, `PUBLIC_PROFIT`, `NON_PROFIT`, `GOVERNMENT`, `SOLE_PROPRIETOR`
+#### Entity Types
+
+`PRIVATE_PROFIT`, `PUBLIC_PROFIT`, `NON_PROFIT`, `GOVERNMENT`, `SOLE_PROPRIETOR`
 
 > Note: `PUBLIC_PROFIT` entities require `StockSymbol` and `StockExchange` fields.
 
-**Vertical Types:** `AUTOMOTIVE`, `AGRICULTURE`, `BANKING`, `COMMUNICATION`, `CONSTRUCTION`, `EDUCATION`, `ENERGY`, `ENTERTAINMENT`, `GOVERNMENT`, `HEALTHCARE`, `HOSPITALITY`, `INSURANCE`, `LEGAL`, `MANUFACTURING`, `NON_PROFIT`, `PROFESSIONAL`, `REAL_ESTATE`, `RETAIL`, `TECHNOLOGY`, `TRANSPORTATION`
+#### Vertical Types
+
+`AUTOMOTIVE`, `AGRICULTURE`, `BANKING`, `COMMUNICATION`, `CONSTRUCTION`, `EDUCATION`, `ENERGY`, `ENTERTAINMENT`, `GOVERNMENT`, `HEALTHCARE`, `HOSPITALITY`, `INSURANCE`, `LEGAL`, `MANUFACTURING`, `NON_PROFIT`, `PROFESSIONAL`, `REAL_ESTATE`, `RETAIL`, `TECHNOLOGY`, `TRANSPORTATION`
 
 ### Campaign Registration
 
-Register and manage campaigns for TCR carrier vetting.
+Register and manage campaigns for TCR (The Campaign Registry) carrier vetting. Each campaign must be linked to a verified brand.
 
 ```go
 package main
@@ -623,10 +624,12 @@ import (
     "log"
     "os"
 
-    "github.com/cloudcontactai/ccai-go/pkg/campaigns"
-    "github.com/cloudcontactai/ccai-go/pkg/ccai"
+    "github.com/cloudcontactai/ccai-go/src/pkg/campaigns"
+    "github.com/cloudcontactai/ccai-go/src/pkg/ccai"
     "github.com/joho/godotenv"
 )
+
+func boolPtr(b bool) *bool { return &b }
 
 func main() {
     err := godotenv.Load()
@@ -649,13 +652,15 @@ func main() {
         SubUseCases:      []string{"CUSTOMER_CARE", "TWO_FACTOR_AUTHENTICATION", "ACCOUNT_NOTIFICATION"},
         Description:      "Security codes and support messaging.",
         MessageFlow:      "Users opt-in via signup form at https://example.com/signup",
-        HasEmbeddedLinks: true,
-        HasEmbeddedPhone: false,
-        IsAgeGated:       false,
-        IsDirectLending:  false,
+        TermsLink:        "https://example.com/terms",
+        PrivacyLink:      "https://example.com/privacy",
+        HasEmbeddedLinks: boolPtr(true),
+        HasEmbeddedPhone: boolPtr(false),
+        IsAgeGated:       boolPtr(false),
+        IsDirectLending:  boolPtr(false),
         OptInKeywords:    []string{"START"},
         OptInMessage:     "Welcome! Reply STOP to cancel.",
-        OptInProofURL:    "https://example.com/opt-in-proof.png",
+        OptInProofUrl:    "https://example.com/opt-in-proof.png",
         HelpKeywords:     []string{"HELP"},
         HelpMessage:      "For HELP email support@example.com.",
         OptOutKeywords:   []string{"STOP"},
@@ -678,41 +683,43 @@ func main() {
     fmt.Printf("Campaign use case: %s\n", fetched.UseCase)
 
     // List all campaigns
-    campaignList, err := client.Campaigns.List()
+    allCampaigns, err := client.Campaigns.List()
     if err != nil {
         log.Fatalf("Failed to list campaigns: %v", err)
     }
-    fmt.Printf("Found %d campaign(s)\n", len(campaignList))
+    fmt.Printf("Found %d campaign(s)\n", len(allCampaigns))
 
     // Update a campaign (partial update)
-    _, err = client.Campaigns.Update(campaign.ID, campaigns.CampaignRequest{
+    updated, err := client.Campaigns.Update(campaign.ID, campaigns.CampaignRequest{
         Description: "Updated description.",
     })
     if err != nil {
         log.Fatalf("Failed to update campaign: %v", err)
     }
+    fmt.Printf("Campaign updated: %s\n", updated.Description)
 
     // Delete a campaign
-    err = client.Campaigns.Delete(campaign.ID)
-    if err != nil {
+    if err := client.Campaigns.Delete(campaign.ID); err != nil {
         log.Fatalf("Failed to delete campaign: %v", err)
     }
 }
 ```
 
-**Use Cases:** `TWO_FACTOR_AUTHENTICATION`, `ACCOUNT_NOTIFICATION`, `CUSTOMER_CARE`, `DELIVERY_NOTIFICATION`, `FRAUD_ALERT`, `HIGHER_EDUCATION`, `LOW_VOLUME_MIXED`, `MARKETING`, `MIXED`, `POLLING_VOTING`, `PUBLIC_SERVICE_ANNOUNCEMENT`, `SECURITY_ALERT`
+#### Use Cases
+
+`TWO_FACTOR_AUTHENTICATION`, `ACCOUNT_NOTIFICATION`, `CUSTOMER_CARE`, `DELIVERY_NOTIFICATION`, `FRAUD_ALERT`, `HIGHER_EDUCATION`, `LOW_VOLUME_MIXED`, `MARKETING`, `MIXED`, `POLLING_VOTING`, `PUBLIC_SERVICE_ANNOUNCEMENT`, `SECURITY_ALERT`
 
 > Note: `MIXED` and `LOW_VOLUME_MIXED` campaigns require 2–3 `SubUseCases`.
 
-**Sub-Use Cases:** `TWO_FACTOR_AUTHENTICATION`, `ACCOUNT_NOTIFICATION`, `CUSTOMER_CARE`, `DELIVERY_NOTIFICATION`, `FRAUD_ALERT`, `MARKETING`, `POLLING_VOTING`
+#### Sub-Use Cases
+
+`TWO_FACTOR_AUTHENTICATION`, `ACCOUNT_NOTIFICATION`, `CUSTOMER_CARE`, `DELIVERY_NOTIFICATION`, `FRAUD_ALERT`, `MARKETING`, `POLLING_VOTING`
 
 ### With Progress Tracking
 
 ```go
 // Create options with progress tracking
 options := &sms.Options{
-	Timeout: 60,
-	Retries: 3,
 	OnProgress: func(status string) {
 		fmt.Printf("%s - %s\n", time.Now().Format("2006-01-02 15:04:05"), status)
 	},
@@ -723,6 +730,7 @@ response, err := client.SMS.Send(
 	accounts,
 	message,
 	title,
+	"", // senderPhone (optional)
 	options,
 )
 ```
@@ -730,10 +738,10 @@ response, err := client.SMS.Send(
 ## Project Structure
 
 - `src/` - Source code
+  - `index.go` - Root-package re-exports (`ccai`, `sms`, `email` types only)
   - `pkg/` - Package code
     - `ccai/` - Main CCAI client package
       - `client.go` - Main CCAI client implementation
-      - `ccai.go` - Type definitions and exports
     - `sms/` - SMS and MMS functionality
       - `models.go` - Data models
       - `sms.go` - SMS service implementation
@@ -743,24 +751,32 @@ response, err := client.SMS.Send(
       - `email.go` - Email service implementation
     - `contact/` - Contact management
       - `contact.go` - Contact service (opt-out)
+    - `contactvalidator/` - Email/phone validation
+      - `service.go` - Contact validator service
+      - `models.go` - Validation models
+    - `brands/` - Brand registration (TCR)
+      - `brands.go` - Brand service implementation
+    - `campaigns/` - Campaign registration (TCR)
+      - `campaigns.go` - Campaign service implementation
     - `webhook/` - Webhook functionality
-      - `service.go` - Webhook CRUD service
-      - `webhook.go` - Webhook client and signature verification
+      - `service.go` - Webhook CRUD service (used by `ccai.Client.Webhook`)
       - `types.go` - Webhook type definitions
-      - `handler.go` - Webhook event handler
+      - `handler.go` - `CreateHandler` HTTP handler helper
   - `examples/` - Example usage
 - `.env` - Environment variables
 - `.env.example` - Environment variables template
+
+> Note: import services directly from `github.com/cloudcontactai/ccai-go/src/pkg/...` (e.g. `.../src/pkg/webhook`, `.../src/pkg/brands`) — the root `src/index.go` wrapper only re-exports the `ccai`, `sms`, and `email` types.
 
 ## Features
 
 - Send SMS messages to single or multiple recipients
 - Send MMS messages with images (automatic S3 upload)
 - Send Email campaigns with HTML content
-- Manage contact opt-out preferences (SetDoNotText)
-- Validate email addresses (valid/invalid/risky) and phone numbers (valid/invalid/landline)
 - Brand registration and management for TCR verification
 - Campaign registration and management for TCR carrier vetting
+- Manage contact opt-out preferences (SetDoNotText)
+- Validate email addresses (valid/invalid/risky) and phone numbers (valid/invalid/landline)
 - Webhook management: register, list, update, delete
 - Webhook signature verification (HMAC-SHA256)
 - Template variable substitution (`${firstName}`, `${lastName}`)
