@@ -263,6 +263,63 @@ func TestSMSResponseMessageAndResponseID(t *testing.T) {
 	}
 }
 
+func TestSendWithTemplateID(t *testing.T) {
+	var capturedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = make([]byte, r.ContentLength)
+		r.Body.Read(capturedBody)
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":     "msg-tpl-1",
+			"status": "sent",
+		})
+	}))
+	defer server.Close()
+
+	tc := &testutil.TestClient{BaseURL: server.URL, FilesURL: server.URL}
+	svc := sms.NewService(tc)
+
+	accounts := []sms.Account{{FirstName: "John", LastName: "Doe", Phone: "+15551234567"}}
+	templateID := int64(12345)
+
+	res, err := svc.SendWithTemplate(accounts, templateID, "Template Campaign", "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.GetID() != "msg-tpl-1" {
+		t.Errorf("expected ID 'msg-tpl-1', got '%s'", res.GetID())
+	}
+
+	bodyStr := string(capturedBody)
+	if !contains(bodyStr, `"templateId":12345`) {
+		t.Errorf("expected request body to contain templateId, got: %s", bodyStr)
+	}
+}
+
+func TestSendSingleWithTemplateID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"id": "msg-tpl-2", "status": "sent"})
+	}))
+	defer server.Close()
+
+	tc := &testutil.TestClient{BaseURL: server.URL, FilesURL: server.URL}
+	svc := sms.NewService(tc)
+
+	res, err := svc.SendSingleWithTemplate("Jane", "Smith", "+15559876543", int64(99), "Single Template", "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.GetID() != "msg-tpl-2" {
+		t.Errorf("expected ID 'msg-tpl-2', got '%s'", res.GetID())
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		func() bool {
