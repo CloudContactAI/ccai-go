@@ -22,58 +22,55 @@ func NewService(client ClientInterface) *Service {
 
 // Send sends an SMS message to one or more recipients.
 func (s *Service) Send(accounts []Account, message, title, senderPhone string, options *Options) (*Response, error) {
-	// Validate inputs
+	return s.SendWithOptions(accounts, message, title, senderPhone, nil, options)
+}
+
+// SendWithOptions sends an SMS with an optional templateId.
+func (s *Service) SendWithOptions(accounts []Account, message, title, senderPhone string, templateID *int64, options *Options) (*Response, error) {
 	if len(accounts) == 0 {
 		return nil, fmt.Errorf("at least one account is required")
 	}
-
-	if message == "" {
-		return nil, fmt.Errorf("message is required")
+	if message == "" && templateID == nil {
+		return nil, fmt.Errorf("message is required when templateId is not provided")
 	}
-
 	if title == "" {
 		return nil, fmt.Errorf("title is required")
 	}
-
-	// Create options if not provided
 	if options == nil {
 		options = &Options{}
 	}
-
-	// Notify progress if callback provided
 	options.NotifyProgress("Preparing to send SMS")
-
-	// Prepare the endpoint and data
 	endpoint := fmt.Sprintf("/clients/%s/campaigns/direct", s.client.GetClientID())
-
 	campaignData := Campaign{
 		Accounts:    accounts,
 		Message:     message,
 		Title:       title,
 		SenderPhone: senderPhone,
+		TemplateID:  templateID,
 	}
-
-	// Notify progress if callback provided
 	options.NotifyProgress("Sending SMS")
-
-	// Make the API request
 	responseBody, err := s.client.Request("POST", endpoint, campaignData, nil)
 	if err != nil {
-		// Notify progress if callback provided
 		options.NotifyProgress("SMS sending failed")
 		return nil, fmt.Errorf("failed to send SMS: %w", err)
 	}
-
-	// Parse the response
 	var response Response
 	if err := json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-
-	// Notify progress if callback provided
 	options.NotifyProgress("SMS sent successfully")
-
 	return &response, nil
+}
+
+// SendWithTemplate sends an SMS using a pre-approved template (for template-controlled accounts).
+func (s *Service) SendWithTemplate(accounts []Account, templateID int64, title, senderPhone string, options *Options) (*Response, error) {
+	return s.SendWithOptions(accounts, "", title, senderPhone, &templateID, options)
+}
+
+// SendSingleWithTemplate sends an SMS to a single recipient using a pre-approved template.
+func (s *Service) SendSingleWithTemplate(firstName, lastName, phone string, templateID int64, title, senderPhone string, options *Options) (*Response, error) {
+	account := Account{FirstName: firstName, LastName: lastName, Phone: phone}
+	return s.SendWithTemplate([]Account{account}, templateID, title, senderPhone, options)
 }
 
 // SendSingle sends a single SMS message to one recipient.

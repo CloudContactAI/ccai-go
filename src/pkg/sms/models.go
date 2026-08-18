@@ -27,6 +27,7 @@ type Campaign struct {
 	Message     string    `json:"message"`
 	Title       string    `json:"title"`
 	SenderPhone string    `json:"senderPhone,omitempty"`
+	TemplateID  *int64    `json:"templateId,omitempty"`
 }
 
 // MMSCampaign represents an MMS campaign.

@@ -148,6 +148,36 @@ func main() {
 }
 ```
 
+### SMS — Template-Controlled Accounts
+
+If an account has been configured to enforce template-only messaging, all campaigns must reference a pre-approved template ID. Sending a free-text message to such an account will result in a `422` error.
+
+```go
+templateID := int64(12345)
+
+// Send to multiple recipients using a template
+response, err := client.SMS.SendWithTemplate(
+    accounts,
+    templateID,
+    "My Campaign",
+    "",    // senderPhone (optional)
+    nil,   // options
+)
+
+// Send to a single recipient using a template
+response, err := client.SMS.SendSingleWithTemplate(
+    "John",
+    "Doe",
+    "+15551234567",
+    templateID,
+    "My Campaign",
+    "",  // senderPhone (optional)
+    nil, // options
+)
+```
+
+The message body is resolved server-side from the template. Variable substitution (e.g. `${firstName}`) is applied automatically using the recipient's account data.
+
 ### MMS
 
 ```go
