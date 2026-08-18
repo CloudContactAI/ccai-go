@@ -1,6 +1,7 @@
-// Go SDK integration tests — 52 tests
+// Go SDK integration tests — 54 tests
 // Covers: SMS (1-6), MMS (7-17), Email (18-22), Webhook (23-29), Contact (30-31),
-// Brands (32-36), Campaigns (37-42), ContactValidator (43-46), Negative cases (47-52)
+// Brands (32-36), Campaigns (37-42), ContactValidator (43-46), Negative cases (47-52),
+// SMS Templates (53-54)
 //
 // Test results use three states:
 //
@@ -20,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -158,7 +160,7 @@ func runAll() int {
 		"CCAI_TEST_FIRST_NAME", "CCAI_TEST_LAST_NAME",
 		"CCAI_TEST_FIRST_NAME_2", "CCAI_TEST_LAST_NAME_2",
 		"CCAI_TEST_FIRST_NAME_3", "CCAI_TEST_LAST_NAME_3",
-		"WEBHOOK_URL",
+		"WEBHOOK_URL", "CCAI_TEST_TEMPLATE_ID",
 	}
 	var missing []string
 	for _, key := range requiredEnv {
@@ -185,6 +187,7 @@ func runAll() int {
 	lastName2 := os.Getenv("CCAI_TEST_LAST_NAME_2")
 	firstName3 := os.Getenv("CCAI_TEST_FIRST_NAME_3")
 	lastName3 := os.Getenv("CCAI_TEST_LAST_NAME_3")
+	templateID, _ := strconv.ParseInt(os.Getenv("CCAI_TEST_TEMPLATE_ID"), 10, 64)
 
 	// Unique per-run suffix so parallel SDK runs don't collide on the same webhook URL
 	runID := fmt.Sprintf("go-%d", time.Now().Unix())
@@ -1155,6 +1158,28 @@ func runAll() int {
 		}
 		fakeKey := fmt.Sprintf("%s/campaign/nonexistent_%d.png", clientID, time.Now().Unix())
 		resp, err := client.MMS.Send(fakeKey, accounts, "nonexistent fileKey accepted", "Go Permissive 52", "", nil, false)
+		if err != nil {
+			return err
+		}
+		return assertSMSResponse(resp)
+	})
+
+	fmt.Println("\n--- SMS Templates ---")
+
+	run("53 SMS.SendWithTemplate", func() error {
+		accounts := []sms.Account{
+			{FirstName: firstName1, LastName: lastName1, Phone: phone1},
+			{FirstName: firstName2, LastName: lastName2, Phone: phone2},
+		}
+		resp, err := client.SMS.SendWithTemplate(accounts, templateID, "Go Template Test", "", nil)
+		if err != nil {
+			return err
+		}
+		return assertSMSResponse(resp)
+	})
+
+	run("54 SMS.SendSingleWithTemplate", func() error {
+		resp, err := client.SMS.SendSingleWithTemplate(firstName1, lastName1, phone1, templateID, "Go Single Template Test", "", nil)
 		if err != nil {
 			return err
 		}

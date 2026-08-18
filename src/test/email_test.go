@@ -30,7 +30,7 @@ func TestEmailSendSingle(t *testing.T) {
 	svc := email.NewService(tc)
 
 	res, err := svc.SendSingle("John", "Doe", "john@example.com",
-		"Test Subject", "<p>Test message</p>",
+		"Test Subject", "<p>Test message</p>", "",
 		"sender@example.com", "reply@example.com", "Test Sender", "Test Campaign", nil)
 
 	if err != nil {
